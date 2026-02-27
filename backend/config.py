@@ -42,9 +42,10 @@ ROUTER_ABI = [
 FLASHGAP_CONTRACT = os.getenv("FLASHGAP_CONTRACT_ADDRESS", "")
 DEPLOYER_PRIVATE_KEY = os.getenv("DEPLOYER_PRIVATE_KEY", "")
 
-# ── AI / OpenAI ───────────────────────────────────────────
+# ── AI / Groq (OpenAI-compatible) ─────────────────────────
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-AI_MODEL = "gpt-4o-mini"
+AI_BASE_URL = os.getenv("AI_BASE_URL", "https://api.groq.com/openai/v1")
+AI_MODEL = os.getenv("AI_MODEL", "llama-3.3-70b-versatile")
 CONFIDENCE_THRESHOLD = 0.80
 MIN_PROFIT_USD = 0.50
 
