@@ -1,9 +1,11 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config();
 
-const DEPLOYER_PRIVATE_KEY =
-    process.env.DEPLOYER_PRIVATE_KEY ||
-    "0x0000000000000000000000000000000000000000000000000000000000000001";
+// Fallback is a valid 32-byte dummy — only used for compilation, never for real TXs
+const RAW_KEY = process.env.DEPLOYER_PRIVATE_KEY || "";
+const DEPLOYER_PRIVATE_KEY = RAW_KEY.startsWith("0x") && RAW_KEY.length === 66
+    ? RAW_KEY
+    : "0x0000000000000000000000000000000000000000000000000000000000000001";
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {

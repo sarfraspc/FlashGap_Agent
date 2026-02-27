@@ -16,7 +16,7 @@
         "defi",
         "ai"
     ],
-    "author": "",
+    "author": "novum",
     "license": "MIT",
     "devDependencies": {
         "@nomicfoundation/hardhat-toolbox": "^4.0.0",

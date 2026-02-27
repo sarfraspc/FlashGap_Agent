@@ -31,8 +31,7 @@ async function main() {
     }
 
     // ── Pick the right factory ──────────────────────────
-    const PANCAKE_FACTORY =
-        process.env.PANCAKESWAP_FACTORY || FACTORIES[network] || FACTORIES.bscTestnet;
+    const PANCAKE_FACTORY = FACTORIES[network] || FACTORIES.bscTestnet;
     const MIN_PROFIT_BPS = 30; // 0.30 %
 
     console.log(`\n  Factory : ${PANCAKE_FACTORY}`);
