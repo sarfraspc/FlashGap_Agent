@@ -29,6 +29,13 @@ module.exports = {
             accounts: [DEPLOYER_PRIVATE_KEY],
             gasPrice: 10_000_000_000,  // 10 gwei
         },
+        // alias so `--network bsctest` also works
+        bsctest: {
+            url: process.env.BSC_TESTNET_RPC || "https://data-seed-prebsc-1-s1.binance.org:8545",
+            chainId: 97,
+            accounts: [DEPLOYER_PRIVATE_KEY],
+            gasPrice: 10_000_000_000,
+        },
         bscMainnet: {
             url: process.env.BSC_MAINNET_RPC || "https://bsc-dataseed1.binance.org",
             chainId: 56,
