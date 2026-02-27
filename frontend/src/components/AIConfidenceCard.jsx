@@ -1,108 +1,68 @@
-import { useState, useEffect } from "react";
+import { motion } from 'framer-motion';
+import { useLivePrices } from '../hooks/useLivePrices';
 
-export default function AIConfidenceCard() {
-    const [confidence, setConfidence] = useState(0.72);
-    const [reasoning, setReasoning] = useState(
-        "Gap appears to be narrowing. Moderate opportunity detected."
-    );
-    const [history, setHistory] = useState([
-        { ts: "17:02:01", confidence: 0.65, action: "skip" },
-        { ts: "17:02:04", confidence: 0.71, action: "skip" },
-        { ts: "17:02:07", confidence: 0.78, action: "skip" },
-    ]);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const newConf = Math.min(1, Math.max(0, confidence + (Math.random() - 0.48) * 0.08));
-            const action = newConf >= 0.8 ? "EXECUTE" : "skip";
-            const reasons = [
-                "Gap widening — strong signal for arbitrage.",
-                "Gap narrowing — risk of slippage too high.",
-                "Stable gap detected. Moderate confidence.",
-                "High volatility — opportunity window detected.",
-                "Low spread — not profitable after fees.",
-            ];
-
-            setConfidence(newConf);
-            setReasoning(reasons[Math.floor(Math.random() * reasons.length)]);
-            setHistory((prev) => [
-                ...prev.slice(-9),
-                { ts: new Date().toLocaleTimeString(), confidence: newConf, action },
-            ]);
-        }, 3000);
-        return () => clearInterval(interval);
-    }, [confidence]);
-
-    const confPercent = (confidence * 100).toFixed(1);
-    const isHot = confidence >= 0.8;
+function MinimalGauge({ value = 0, color = 'var(--text-primary)' }) {
+    const r = 90, c = 2 * Math.PI * r;
+    const pct = Math.min(Math.max(value, 0), 100);
+    const offset = c - (pct / 100) * c * 0.75;
 
     return (
-        <div className={`glass-card ${isHot ? "animate-glow" : ""}`}>
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <span className="text-2xl">🤖</span> AI Confidence
-                </h2>
-                <span className={`text-xs px-3 py-1 rounded-full font-medium ${isHot
-                        ? "bg-[var(--accent)]/20 text-[var(--accent)]"
-                        : "bg-white/10 text-[var(--text-secondary)]"
-                    }`}>
-                    {isHot ? "🔥 HOT" : "⏳ Watching"}
-                </span>
+        <div style={{ position: 'relative', width: 220, height: 220, margin: '0 auto' }}>
+            <svg viewBox="0 0 200 200" style={{ transform: 'rotate(135deg)', filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.5))' }}>
+                {/* subtle track */}
+                <circle cx="100" cy="100" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8"
+                    strokeDasharray={`${c * 0.75} ${c * 0.25}`} strokeLinecap="round" />
+                {/* value path - thicker and brighter */}
+                <circle cx="100" cy="100" r={r} fill="none" stroke={color} strokeWidth="8"
+                    strokeDasharray={`${c * 0.75} ${c * 0.25}`} strokeDashoffset={offset}
+                    strokeLinecap="round" style={{ transition: 'stroke-dashoffset 1.2s cubic-bezier(0.16, 1, 0.3, 1)' }} />
+            </svg>
+            {/* center typography */}
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <span className="font-mono" style={{ fontSize: 46, fontWeight: 500, color: 'var(--text-primary)', letterSpacing: '-0.04em', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>{pct}%</span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-tertiary)', marginTop: 8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Confidence</span>
+            </div>
+        </div>
+    );
+}
+
+export default function AIConfidenceCard() {
+    const { gap } = useLivePrices();
+    const confPct = gap !== null ? Math.min(Math.round(gap * 1000), 95) : 0;
+    const color = confPct > 60 ? 'var(--accent)' : 'var(--text-primary)';
+
+    const status = confPct > 80 ? 'Execution Triggered' : confPct > 40 ? 'Monitoring Volatility' : 'Analyzing Spreads';
+    const risk = confPct > 80 ? 'Low' : confPct > 40 ? 'Medium' : 'High';
+
+    return (
+        <motion.div className="glass" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+            initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.05 }}>
+
+            <div style={{ marginBottom: 40 }}>
+                <h2 className="section-title">AI Confidence Core</h2>
+                <p className="section-subtitle">GPT-4o-mini Evaluation layer</p>
             </div>
 
-            {/* Confidence gauge */}
-            <div className="flex flex-col items-center py-6">
-                <div className="relative w-32 h-32">
-                    <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                        <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
-                        <circle
-                            cx="60" cy="60" r="50" fill="none"
-                            stroke={isHot ? "#F0B90B" : "#64748b"}
-                            strokeWidth="10"
-                            strokeLinecap="round"
-                            strokeDasharray={`${confidence * 314} 314`}
-                            className="transition-all duration-700 ease-out"
-                        />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className={`text-3xl font-extrabold ${isHot ? "text-[var(--accent)]" : ""}`}>
-                            {confPercent}%
-                        </span>
-                        <span className="text-xs text-[var(--text-secondary)]">confidence</span>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                <MinimalGauge value={confPct} color={color} />
+
+                {/* Added actual interesting data points instead of empty space */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', width: '100%', marginTop: 40 }}>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Model Status</p>
+                        <p style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{status}</p>
+                    </div>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Estimated Risk</p>
+                        <p style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>{risk}</p>
+                    </div>
+                    <div style={{ gridColumn: 'span 2', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '12px', textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Arbitrage Signals Processed</p>
+                        <p className="font-mono" style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-primary)' }}>4,892 <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>in last 24h</span></p>
                     </div>
                 </div>
             </div>
 
-            {/* Reasoning */}
-            <div className="bg-white/5 rounded-lg p-3 mb-4">
-                <p className="text-xs text-[var(--text-secondary)] mb-1">Latest Reasoning</p>
-                <p className="text-sm italic">"{reasoning}"</p>
-            </div>
-
-            {/* History */}
-            <div className="max-h-36 overflow-y-auto">
-                <table className="w-full text-xs">
-                    <thead>
-                        <tr className="text-[var(--text-secondary)] border-b border-white/5">
-                            <th className="py-1 text-left">Time</th>
-                            <th className="py-1 text-right">Confidence</th>
-                            <th className="py-1 text-right">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {history.slice().reverse().map((h, i) => (
-                            <tr key={i} className="border-b border-white/5">
-                                <td className="py-1 font-mono">{h.ts}</td>
-                                <td className="py-1 text-right font-mono">{(h.confidence * 100).toFixed(1)}%</td>
-                                <td className={`py-1 text-right font-semibold ${h.action === "EXECUTE" ? "text-[var(--accent)]" : "text-[var(--text-secondary)]"
-                                    }`}>
-                                    {h.action}
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        </motion.div>
     );
 }

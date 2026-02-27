@@ -1,93 +1,63 @@
-import { useState, useEffect } from "react";
-
-// Simulated live price data for demo purposes
-const generateTick = () => {
-    const base = 0.00315;
-    const pancake = base + (Math.random() - 0.5) * 0.0003;
-    const biswap = base + (Math.random() - 0.5) * 0.0003;
-    const gap = Math.abs(pancake - biswap) / Math.max(pancake, biswap) * 100;
-    return {
-        ts: new Date().toLocaleTimeString(),
-        pancake: pancake.toFixed(6),
-        biswap: biswap.toFixed(6),
-        gap: gap.toFixed(4),
-    };
-};
+import { motion } from 'framer-motion';
+import { useLivePrices } from '../hooks/useLivePrices';
+import { formatPrice } from '../utils/formatters';
 
 export default function PriceGapCard() {
-    const [ticks, setTicks] = useState(() =>
-        Array.from({ length: 10 }, generateTick)
-    );
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setTicks((prev) => [...prev.slice(-19), generateTick()]);
-        }, 3000);
-        return () => clearInterval(interval);
-    }, []);
-
-    const latest = ticks[ticks.length - 1];
-    const gapColor =
-        parseFloat(latest.gap) > 0.1 ? "text-[var(--green)]" : "text-[var(--text-secondary)]";
+    const { pcsPrice, biswapPrice, gap, history, pcsError, biswapError } = useLivePrices();
+    const isOpp = gap !== null && gap > 0.1;
+    const gapColor = gap !== null ? (isOpp ? 'var(--accent)' : 'var(--text-primary)') : 'var(--text-muted)';
+    const maxGap = Math.max(...history.map(h => h.gap || 0), 0.01);
 
     return (
-        <div className="glass-card">
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <span className="text-2xl">📊</span> Price Gap Monitor
-                </h2>
-                <span className="text-xs px-3 py-1 rounded-full bg-green-500/10 text-green-400 font-medium animate-pulse">
-                    ● LIVE
-                </span>
+        <motion.div className="glass" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
+                <div>
+                    <h2 className="section-title">Price Divergence</h2>
+                    <p className="section-subtitle">Real-time gap between PancakeSwap & BiSwap</p>
+                </div>
+                {isOpp && <span className="tag tag-live">OPPORTUNITY</span>}
             </div>
 
-            {/* Current prices */}
-            <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-xs text-[var(--text-secondary)] mb-1">🥞 PancakeSwap</p>
-                    <p className="text-xl font-bold font-mono">{latest.pancake}</p>
-                    <p className="text-xs text-[var(--text-secondary)]">BUSD → WBNB</p>
-                </div>
-                <div className="bg-white/5 rounded-lg p-3">
-                    <p className="text-xs text-[var(--text-secondary)] mb-1">🔄 BiSwap</p>
-                    <p className="text-xl font-bold font-mono">{latest.biswap}</p>
-                    <p className="text-xs text-[var(--text-secondary)]">BUSD → WBNB</p>
+            {/* ── Minimalist Gap Hero ─────────────────────────── */}
+            <div style={{ textAlign: 'center', padding: '32px 0 48px', marginBottom: 20 }}>
+                <p style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 16 }}>Current Spread (WBNB/BUSD)</p>
+                <div className={`font-mono ${isOpp ? 'glow-text' : ''}`} style={{ fontSize: 88, fontWeight: 400, letterSpacing: '-0.04em', color: gapColor, lineHeight: 1, textShadow: isOpp ? '' : '0 4px 12px rgba(0,0,0,0.5)' }}>
+                    {gap !== null ? `${gap.toFixed(4)}%` : '—'}
                 </div>
             </div>
 
-            {/* Gap display */}
-            <div className="text-center py-3 bg-white/5 rounded-lg">
-                <p className="text-xs text-[var(--text-secondary)] mb-1">Current Gap</p>
-                <p className={`text-3xl font-extrabold font-mono ${gapColor}`}>
-                    {latest.gap}%
-                </p>
+            {/* ── Elegant Price Readings ──────────────────────── */}
+            <div className="price-2col" style={{ marginBottom: 40, background: 'rgba(255,255,255,0.02)', padding: '24px', borderRadius: '16px', boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.2)' }}>
+                <PriceItem label="PancakeSwap" price={pcsPrice} error={pcsError} />
+                <PriceItem label="BiSwap" price={biswapPrice} error={biswapError} />
             </div>
 
-            {/* Recent ticks */}
-            <div className="mt-4 max-h-40 overflow-y-auto">
-                <table className="w-full text-xs">
-                    <thead>
-                        <tr className="text-[var(--text-secondary)] border-b border-white/5">
-                            <th className="py-1 text-left">Time</th>
-                            <th className="py-1 text-right">PCS</th>
-                            <th className="py-1 text-right">BiSwap</th>
-                            <th className="py-1 text-right">Gap %</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {ticks.slice().reverse().map((t, i) => (
-                            <tr key={i} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                                <td className="py-1 font-mono">{t.ts}</td>
-                                <td className="py-1 text-right font-mono">{t.pancake}</td>
-                                <td className="py-1 text-right font-mono">{t.biswap}</td>
-                                <td className={`py-1 text-right font-mono ${parseFloat(t.gap) > 0.1 ? "text-[var(--green)]" : ""}`}>
-                                    {t.gap}%
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            {/* ── Subdued History Chart ───────────────────────── */}
+            {history.length > 0 && (
+                <div style={{ height: 60, display: 'flex', alignItems: 'flex-end', gap: 6, width: '100%' }}>
+                    {history.map((h, i) => (
+                        <div key={i} style={{
+                            flex: 1, minWidth: 4, borderRadius: 100,
+                            height: `${Math.max((h.gap / maxGap) * 100, 4)}%`,
+                            background: h.gap > 0.1 ? 'var(--accent)' : 'var(--text-secondary)',
+                            opacity: 0.2 + (i / history.length) * 0.8,
+                            transition: 'height 0.3s ease-in-out',
+                            boxShadow: h.gap > 0.1 ? '0 0 8px var(--accent)' : 'none'
+                        }} />
+                    ))}
+                </div>
+            )}
+        </motion.div>
+    );
+}
+
+function PriceItem({ label, price, error }) {
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' }}>{label}</p>
+            <p className="font-mono" style={{ fontSize: 26, fontWeight: 500, color: 'var(--text-primary)', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                {error ? <span style={{ color: 'var(--red)' }}>Err</span> : price !== null ? formatPrice(price, 8) : <span style={{ opacity: 0.3 }}>Wait</span>}
+            </p>
         </div>
     );
 }
