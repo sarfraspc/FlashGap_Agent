@@ -1,12 +1,11 @@
 """
-FlashGap AI — Price Watcher + AI Gating (Step 4)
+FlashGap AI — Full Agent (Steps 3-6) + Multi-Pair Scanner
 
-Connects to BSC mainnet (read-only), fetches live prices from
-PancakeSwap and BiSwap every 3 seconds, then feeds the last 20
-price readings to GPT-4o-mini for confidence scoring.
-
-If confidence >= 80% → prints 🔥 WOULD EXECUTE
-Otherwise           → prints ⏳ skip
+1. Scans 6 pairs on BSC Mainnet (PancakeSwap + BiSwap)
+2. Finds the pair with the BIGGEST price gap
+3. AI (Groq/LLaMA) evaluates the best opportunity
+4. If confidence >= 80% → sends TX to FlashGap contract on Testnet
+5. Logs every decision to local JSON files
 """
 
 import time
@@ -15,18 +14,22 @@ import datetime
 from web3 import Web3
 
 from config import (
-    BSC_RPC,
+    BSC_RPC, BSC_TESTNET_RPC,
     PANCAKE_ROUTER, BISWAP_ROUTER,
     WBNB, BUSD,
-    ROUTER_ABI,
+    TESTNET_WBNB, TESTNET_BUSD, TESTNET_PANCAKE_ROUTER,
+    ROUTER_ABI, FLASHGAP_ABI, SCAN_PAIRS,
     POLL_INTERVAL_SEC, BORROW_AMOUNT_WEI,
     OPENAI_API_KEY, AI_BASE_URL, AI_MODEL, CONFIDENCE_THRESHOLD,
+    FLASHGAP_CONTRACT, DEPLOYER_PRIVATE_KEY,
 )
+from greenfield import upload_log
 
-# ── Web3 connection ────────────────────────────────────────
-w3 = Web3(Web3.HTTPProvider(BSC_RPC))
+# ── Web3 connections ──────────────────────────────────────
+w3_mainnet = Web3(Web3.HTTPProvider(BSC_RPC))
+w3_testnet = Web3(Web3.HTTPProvider(BSC_TESTNET_RPC))
 
-# ── OpenAI setup ──────────────────────────────────────────
+# ── AI setup ─────────────────────────────────────────────
 ai_enabled = False
 client = None
 
@@ -39,211 +42,360 @@ if OPENAI_API_KEY:
     except ImportError:
         print("  ⚠️  openai package not installed. Run: pip install openai")
 else:
-    print("  ⚠️  No OpenAI API key set. AI gating disabled (mock mode).")
+    print("  ⚠️  No API key set. AI gating disabled (mock mode).")
+
+# ── Contract setup ───────────────────────────────────────
+contract = None
+account = None
+can_execute = False
+
+if FLASHGAP_CONTRACT and DEPLOYER_PRIVATE_KEY:
+    try:
+        contract = w3_testnet.eth.contract(
+            address=Web3.to_checksum_address(FLASHGAP_CONTRACT),
+            abi=FLASHGAP_ABI,
+        )
+        account = w3_testnet.eth.account.from_key(DEPLOYER_PRIVATE_KEY)
+        can_execute = True
+        print(f"  ✅ Contract: {FLASHGAP_CONTRACT[:10]}...{FLASHGAP_CONTRACT[-6:]}")
+        print(f"  ✅ Executor: {account.address[:10]}...{account.address[-6:]}")
+    except Exception as e:
+        print(f"  ⚠️  Contract setup failed: {e}")
+else:
+    print("  ⚠️  No contract/key — execution disabled.")
 
 
 def check_connection():
-    """Verify Web3 connection is alive."""
-    connected = w3.is_connected()
-    block = w3.eth.block_number if connected else "N/A"
-    print(f"  Connected : {connected}")
-    print(f"  Block     : {block}")
-    print(f"  Chain ID  : {w3.eth.chain_id if connected else 'N/A'}")
-    return connected
+    m_ok = w3_mainnet.is_connected()
+    t_ok = w3_testnet.is_connected()
+    print(f"  Mainnet  : {'✅ Connected' if m_ok else '❌ Failed'} (block {w3_mainnet.eth.block_number if m_ok else 'N/A'})")
+    print(f"  Testnet  : {'✅ Connected' if t_ok else '❌ Failed'} (block {w3_testnet.eth.block_number if t_ok else 'N/A'})")
+    return m_ok
 
 
 def get_router(address):
-    """Return a router contract instance."""
-    return w3.eth.contract(
+    return w3_mainnet.eth.contract(
         address=Web3.to_checksum_address(address),
         abi=ROUTER_ABI,
     )
 
 
 def fetch_price(router, token_in, token_out, amount_in):
-    """
-    Call getAmountsOut on a DEX router.
-    Returns the output amount as a float (18 decimals).
-    """
-    path = [
-        Web3.to_checksum_address(token_in),
-        Web3.to_checksum_address(token_out),
-    ]
+    path = [Web3.to_checksum_address(token_in), Web3.to_checksum_address(token_out)]
     try:
         amounts = router.functions.getAmountsOut(amount_in, path).call()
         return float(amounts[-1]) / 1e18
-    except Exception as e:
-        return None, str(e)
+    except Exception:
+        return None
 
 
-def ask_ai(price_history):
+def scan_all_pairs(pancake, biswap):
     """
-    Feed the last N price readings to GPT-4o-mini.
-    Returns (confidence: float 0-1, reasoning: str).
+    Scan all configured pairs on both DEXs.
+    Returns list of results sorted by gap (biggest first).
     """
+    results = []
+
+    for pair in SCAN_PAIRS:
+        amount = BORROW_AMOUNT_WEI  # 1 token
+
+        pcs_price = fetch_price(pancake, pair["token_in"], pair["token_out"], amount)
+        bi_price = fetch_price(biswap, pair["token_in"], pair["token_out"], amount)
+
+        if pcs_price is None or bi_price is None:
+            continue
+
+        gap = abs(pcs_price - bi_price) / max(pcs_price, bi_price, 1e-18) * 100
+
+        # Determine direction
+        if pcs_price < bi_price:
+            direction = "Buy PCS → Sell BiSwap"
+        else:
+            direction = "Buy BiSwap → Sell PCS"
+
+        results.append({
+            "label": pair["label"],
+            "token_in": pair["token_in"],
+            "token_out": pair["token_out"],
+            "pcs_price": pcs_price,
+            "bi_price": bi_price,
+            "gap_pct": gap,
+            "direction": direction,
+            "profitable": gap > 0.25,  # above flash fee
+        })
+
+    # Sort by gap descending
+    results.sort(key=lambda x: x["gap_pct"], reverse=True)
+    return results
+
+
+def ask_ai(scan_results, price_history):
     if not ai_enabled:
-        # Mock mode — simulate based on latest gap
-        if not price_history:
-            return 0.0, "No data yet"
-        latest = price_history[-1]
-        mock_conf = min(latest["gap_pct"] * 15, 0.95)  # scale gap to confidence
-        reason = f"Mock: gap={latest['gap_pct']:.4f}%, scaled confidence"
-        return mock_conf, reason
+        if not scan_results:
+            return 0.0, "No data", None
+        best = scan_results[0]
+        mock_conf = min(best["gap_pct"] * 3, 0.95) if best["gap_pct"] > 0.1 else best["gap_pct"] * 2
+        return mock_conf, f"Mock: {best['label']} gap={best['gap_pct']:.4f}%", best["label"]
 
-    # Build the prompt with price data
-    data_str = json.dumps(price_history[-20:], indent=2)
+    # Build multi-pair data for AI
+    pairs_str = "\n".join([
+        f"  {r['label']}: PCS={r['pcs_price']:.10f}, BiSwap={r['bi_price']:.10f}, Gap={r['gap_pct']:.4f}%, Direction={r['direction']}, Profitable={r['profitable']}"
+        for r in scan_results
+    ])
+
+    history_str = ""
+    if price_history:
+        history_str = f"\n\nRecent history of best pair ({price_history[-1].get('best_pair', 'N/A')}):\n"
+        history_str += json.dumps(price_history[-10:], indent=2)
 
     prompt = f"""You are an AI arbitrage evaluator for a DeFi flash-swap bot on BNB Chain.
 
-Analyze these recent price readings from PancakeSwap and BiSwap for the BUSD→WBNB pair.
-Each entry has: timestamp, pancakeswap_price, biswap_price, gap_pct (percentage difference).
+CURRENT SCAN — 6 pairs across PancakeSwap vs BiSwap:
+{pairs_str}
 
-Data (last {len(price_history[-20:])} ticks, 3s interval):
-{data_str}
+Flash swap fee: 0.25% (gap must exceed this for profit)
+{history_str}
 
 Evaluate:
-1. Is the gap consistent or widening? (better for arbitrage)
-2. Is the gap > 0.1%? (minimum for profit after 0.25% flash fee)
-3. Is there enough momentum to sustain the gap during execution?
+1. Which pair has the best opportunity RIGHT NOW?
+2. Is that gap > 0.25% (profitable after flash fee)?
+3. Is the gap widening or stable?
 
-Respond in EXACTLY this JSON format (no markdown, no extra text):
-{{"confidence": 0.XX, "reasoning": "one sentence explanation", "action": "execute" or "skip"}}
-
-confidence must be a float between 0.00 and 1.00.
+Respond in EXACTLY this JSON format:
+{{"confidence": 0.XX, "reasoning": "one sentence", "action": "execute" or "skip", "best_pair": "LABEL/LABEL"}}
 """
 
     try:
         response = client.chat.completions.create(
             model=AI_MODEL,
             messages=[
-                {"role": "system", "content": "You are a quantitative DeFi analyst. Always respond with valid JSON only."},
+                {"role": "system", "content": "You are a quantitative DeFi analyst. Respond with valid JSON only."},
                 {"role": "user", "content": prompt},
             ],
             temperature=0.3,
-            max_tokens=150,
+            max_tokens=200,
         )
-
         raw = response.choices[0].message.content.strip()
-        # Parse JSON from response
         result = json.loads(raw)
-        confidence = float(result.get("confidence", 0))
-        reasoning = result.get("reasoning", "No reasoning provided")
-        return confidence, reasoning
-
+        return (
+            float(result.get("confidence", 0)),
+            result.get("reasoning", "No reasoning"),
+            result.get("best_pair", scan_results[0]["label"] if scan_results else None),
+        )
     except json.JSONDecodeError:
-        return 0.0, f"AI returned invalid JSON: {raw[:80]}"
+        return 0.0, f"AI invalid JSON: {raw[:80]}", None
     except Exception as e:
-        return 0.0, f"AI error: {str(e)[:80]}"
+        return 0.0, f"AI error: {str(e)[:80]}", None
+
+
+def execute_on_chain(confidence, best_pair, gap):
+    results = {"admin_tx": None, "arb_tx": None, "error": None}
+
+    if not can_execute:
+        results["error"] = "Execution disabled"
+        return results
+
+    try:
+        print("         📡 Sending admin TX: setMinProfitBps(30)...")
+        nonce = w3_testnet.eth.get_transaction_count(account.address)
+
+        admin_tx = contract.functions.setMinProfitBps(30).build_transaction({
+            "from": account.address,
+            "nonce": nonce,
+            "gas": 100_000,
+            "gasPrice": w3_testnet.to_wei("10", "gwei"),
+            "chainId": 97,
+        })
+        signed = account.sign_transaction(admin_tx)
+        tx_hash = w3_testnet.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3_testnet.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
+
+        results["admin_tx"] = {
+            "hash": tx_hash.hex(),
+            "status": "✅ success" if receipt["status"] == 1 else "❌ failed",
+            "block": receipt["blockNumber"],
+            "gas_used": receipt["gasUsed"],
+        }
+        print(f"         ✅ Admin TX confirmed: {tx_hash.hex()[:16]}...")
+        print(f"            Block: {receipt['blockNumber']} | Gas: {receipt['gasUsed']}")
+
+    except Exception as e:
+        results["admin_tx"] = {"error": str(e)[:100]}
+        print(f"         ❌ Admin TX failed: {str(e)[:60]}")
+
+    try:
+        print("         📡 Attempting requestArbitrage (testnet)...")
+        nonce = w3_testnet.eth.get_transaction_count(account.address, "pending")
+        borrow_amt = w3_testnet.to_wei("0.001", "ether")
+
+        arb_tx = contract.functions.requestArbitrage(
+            Web3.to_checksum_address(TESTNET_BUSD),
+            Web3.to_checksum_address(TESTNET_WBNB),
+            borrow_amt,
+            Web3.to_checksum_address(TESTNET_PANCAKE_ROUTER),
+            Web3.to_checksum_address(TESTNET_PANCAKE_ROUTER),
+            0,
+        ).build_transaction({
+            "from": account.address,
+            "nonce": nonce,
+            "gas": 500_000,
+            "gasPrice": w3_testnet.to_wei("10", "gwei"),
+            "chainId": 97,
+        })
+        signed = account.sign_transaction(arb_tx)
+        tx_hash = w3_testnet.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3_testnet.eth.wait_for_transaction_receipt(tx_hash, timeout=30)
+
+        status = "✅ Success" if receipt["status"] == 1 else "⚠️ Reverted (expected)"
+        results["arb_tx"] = {
+            "hash": tx_hash.hex(),
+            "status": status,
+            "block": receipt["blockNumber"],
+            "gas_used": receipt["gasUsed"],
+        }
+        print(f"         {status}: {tx_hash.hex()[:16]}...")
+
+    except Exception as e:
+        results["arb_tx"] = {"error": str(e)[:100]}
+        print(f"         ⚠️ Arb TX: {str(e)[:60]}")
+
+    return results
 
 
 def main():
-    print("=" * 60)
-    print("  ⚡ FlashGap AI — Watcher + AI Gating (Step 4)")
-    print("=" * 60)
-    print(f"  RPC       : {BSC_RPC}")
-    print(f"  Pair      : BUSD → WBNB")
-    print(f"  Amount    : {BORROW_AMOUNT_WEI / 1e18} BUSD")
-    print(f"  Interval  : {POLL_INTERVAL_SEC}s")
-    print(f"  AI Model  : {AI_MODEL}")
-    print(f"  AI Enabled: {ai_enabled}")
-    print(f"  Threshold : {CONFIDENCE_THRESHOLD * 100}%")
+    print("=" * 64)
+    print("  ⚡ FlashGap AI — Multi-Pair Scanner + AI Agent")
+    print("=" * 64)
+    print(f"  Scanning : {len(SCAN_PAIRS)} pairs across PancakeSwap × BiSwap")
+    print(f"  AI       : {AI_MODEL} ({'enabled' if ai_enabled else 'mock'})")
+    print(f"  Contract : {'✅' if can_execute else '❌'}")
+    print(f"  Threshold: {CONFIDENCE_THRESHOLD * 100}%")
     print()
 
-    # ── Check connection ───────────────────────────────
     if not check_connection():
-        print("\n❌ Cannot connect to BSC RPC.")
+        print("\n❌ Cannot connect to BSC Mainnet.")
         return
 
     print()
 
-    # ── Setup routers ──────────────────────────────────
     pancake = get_router(PANCAKE_ROUTER)
     biswap = get_router(BISWAP_ROUTER)
 
-    # ── Test single fetch ──────────────────────────────
-    print("── Testing getAmountsOut ──")
-    test_price = fetch_price(pancake, BUSD, WBNB, BORROW_AMOUNT_WEI)
-    if isinstance(test_price, tuple):
-        print(f"  ❌ PancakeSwap failed: {test_price[1]}")
-        return
-    print(f"  ✅ PancakeSwap: 1 BUSD = {test_price:.8f} WBNB")
+    # ── Initial scan ──────────────────────────────────────
+    print("── Initial Pair Scan ──")
+    initial = scan_all_pairs(pancake, biswap)
+    for r in initial:
+        flag = " 🔥" if r["profitable"] else ""
+        print(f"  {r['label']:<12} PCS={r['pcs_price']:.8f}  BI={r['bi_price']:.8f}  Gap={r['gap_pct']:.4f}%{flag}")
 
-    test_price_bi = fetch_price(biswap, BUSD, WBNB, BORROW_AMOUNT_WEI)
-    biswap_ok = not isinstance(test_price_bi, tuple)
-    if biswap_ok:
-        print(f"  ✅ BiSwap:      1 BUSD = {test_price_bi:.8f} WBNB")
-    else:
-        print(f"  ⚠️  BiSwap failed — continuing with PancakeSwap only")
+    if initial:
+        best = initial[0]
+        print(f"\n  🏆 Best gap: {best['label']} ({best['gap_pct']:.4f}%) — {best['direction']}")
+
+    # ── Contract state ────────────────────────────────────
+    if can_execute:
+        try:
+            trades = contract.functions.totalTrades().call()
+            profit = contract.functions.totalProfit().call()
+            print(f"\n── Contract State ──")
+            print(f"  totalTrades: {trades}  |  totalProfit: {profit}")
+        except Exception as e:
+            print(f"  ⚠️  Cannot read contract: {e}")
 
     print()
-    print("=" * 60)
-    print("  🔄 Live Price + AI Gating (Ctrl+C to stop)")
-    print("=" * 60)
+    print("=" * 64)
+    print("  🔄 Live Multi-Pair Scanner + AI (Ctrl+C to stop)")
+    print("=" * 64)
     print()
 
-    # ── State ──────────────────────────────────────────
     price_history = []
     tick_count = 0
-    ai_call_interval = 5  # call AI every N ticks (avoid rate limits)
+    ai_call_interval = 5
+    executions = 0
 
     while True:
         try:
             now = datetime.datetime.now().strftime("%H:%M:%S")
+            now_iso = datetime.datetime.utcnow().isoformat() + "Z"
 
-            # Fetch prices
-            price_pcs = fetch_price(pancake, BUSD, WBNB, BORROW_AMOUNT_WEI)
-            if isinstance(price_pcs, tuple):
-                print(f"  {now}  ⚠️ PancakeSwap error")
+            # ── Scan all pairs ────────────────────────────
+            scan = scan_all_pairs(pancake, biswap)
+            if not scan:
+                print(f"  {now}  ⚠️ All pairs failed")
                 time.sleep(POLL_INTERVAL_SEC)
                 continue
 
-            if biswap_ok:
-                price_bi = fetch_price(biswap, BUSD, WBNB, BORROW_AMOUNT_WEI)
-                if isinstance(price_bi, tuple):
-                    price_bi = price_pcs
-            else:
-                price_bi = price_pcs
+            best = scan[0]
+            tick_count += 1
 
-            # Calculate gap
-            gap = abs(price_pcs - price_bi) / max(price_pcs, price_bi, 1e-18) * 100
-
-            # Store in history
+            # Store history
             tick_data = {
                 "time": now,
-                "pancakeswap": round(price_pcs, 10),
-                "biswap": round(price_bi, 10),
-                "gap_pct": round(gap, 6),
+                "timestamp": now_iso,
+                "best_pair": best["label"],
+                "best_gap": round(best["gap_pct"], 6),
+                "profitable": best["profitable"],
+                "pairs_scanned": len(scan),
+                "all_gaps": {r["label"]: round(r["gap_pct"], 6) for r in scan},
             }
             price_history.append(tick_data)
             if len(price_history) > 100:
                 price_history = price_history[-50:]
 
-            tick_count += 1
-
-            # ── AI Evaluation ──────────────────────────
+            # ── AI evaluation (every 5th tick) ────────────
             if tick_count % ai_call_interval == 0 and len(price_history) >= 3:
-                confidence, reasoning = ask_ai(price_history)
+                confidence, reasoning, ai_pick = ask_ai(scan, price_history)
+
+                # Print scan summary
+                print(f"  {now}  ── Scan ({len(scan)} pairs) ──")
+                for r in scan[:4]:
+                    flag = " 🔥" if r["profitable"] else ""
+                    print(f"         {r['label']:<12} Gap={r['gap_pct']:.4f}%{flag}")
+                print(f"         🤖 AI: {confidence*100:.1f}% — {reasoning}")
 
                 if confidence >= CONFIDENCE_THRESHOLD:
-                    action_str = "🔥 WOULD EXECUTE"
-                    action_color = "\033[93m"  # yellow
-                else:
-                    action_str = "⏳ skip"
-                    action_color = "\033[90m"  # gray
+                    print(f"         🔥 EXECUTING on {ai_pick or best['label']}")
+                    executions += 1
 
-                print(f"  {now}  PCS={price_pcs:.8f}  BI={price_bi:.8f}  Gap={gap:.4f}%")
-                print(f"         🤖 AI: {confidence*100:.1f}% — {reasoning}")
-                print(f"         → {action_str}")
-                print()
+                    tx_results = execute_on_chain(confidence, ai_pick or best["label"], best["gap_pct"])
+
+                    log_entry = {
+                        "timestamp": now_iso,
+                        "tick": tick_count,
+                        "execution_number": executions,
+                        "scan": [{
+                            "pair": r["label"],
+                            "pcs": r["pcs_price"],
+                            "bi": r["bi_price"],
+                            "gap": r["gap_pct"],
+                            "profitable": r["profitable"],
+                        } for r in scan],
+                        "ai": {
+                            "model": AI_MODEL,
+                            "confidence": confidence,
+                            "reasoning": reasoning,
+                            "best_pair": ai_pick,
+                            "threshold": CONFIDENCE_THRESHOLD,
+                        },
+                        "transactions": tx_results,
+                        "contract": FLASHGAP_CONTRACT,
+                    }
+                    log_path = upload_log(log_entry)
+                    print(f"         📄 Logged: {log_path}")
+                    print()
+                else:
+                    print(f"         → ⏳ skip ({confidence*100:.0f}% < {CONFIDENCE_THRESHOLD*100}%)")
+                    print()
             else:
-                # Regular tick (no AI call)
-                print(f"  {now}  PCS={price_pcs:.8f}  BI={price_bi:.8f}  Gap={gap:.4f}%")
+                # Regular tick — compact display
+                profitable_count = sum(1 for r in scan if r["profitable"])
+                print(f"  {now}  Best: {best['label']} Gap={best['gap_pct']:.4f}%  ({profitable_count}/{len(scan)} profitable)")
 
             time.sleep(POLL_INTERVAL_SEC)
 
         except KeyboardInterrupt:
-            print(f"\n\n🛑 Stopped after {tick_count} ticks.")
-            print(f"   {len(price_history)} price readings collected.")
+            print(f"\n\n🛑 Stopped after {tick_count} ticks, {executions} executions.")
+            print(f"   {len(price_history)} scans collected.")
             break
         except Exception as e:
             print(f"  ⚠️  Error: {e}")
