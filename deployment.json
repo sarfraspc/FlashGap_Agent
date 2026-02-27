@@ -1,0 +1,8 @@
+{
+  "network": "bsctest",
+  "contractAddress": "0xa6acB349c32B59c20c898a025971f9e3080B6bf0",
+  "factoryA": "0xcA143Ce32Fe78f1f7019d7d551a6402fC5350c73",
+  "minProfitBps": 30,
+  "deployer": "0x2dCD29a891024F3F5B9F4dF0a33dD7d907F33778",
+  "timestamp": "2026-02-27T14:00:30.495Z"
+}
