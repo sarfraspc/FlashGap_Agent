@@ -2,9 +2,8 @@ import StatBar from './StatBar';
 import PriceGapCard from './PriceGapCard';
 import AIConfidenceCard from './AIConfidenceCard';
 import ArbitrageFlow from './ArbitrageFlow';
-import ContractConfig from './ContractConfig';
 import ExecutionLog from './ExecutionLog';
-import ComingSoonSection from './ComingSoonSection';
+import SecurityMonitor from './SecurityMonitor';
 
 export default function Dashboard() {
     return (
@@ -21,14 +20,11 @@ export default function Dashboard() {
             {/* Row 3: Arbitrage Flow */}
             <ArbitrageFlow />
 
-            {/* Row 4: Execution Log + Contract Config */}
+            {/* Row 4: Activity & Security Monitoring */}
             <div className="log-grid">
                 <ExecutionLog />
-                <ContractConfig />
+                <SecurityMonitor />
             </div>
-
-            {/* Row 5: Coming Soon */}
-            <ComingSoonSection />
         </div>
     );
 }

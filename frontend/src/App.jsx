@@ -12,7 +12,7 @@ function App() {
             <div className="relative z-10">
                 <Header />
 
-                <main className="max-w-[1600px] mx-auto px-6 py-12">
+                <main className="app-container">
                     <Dashboard />
                 </main>
 

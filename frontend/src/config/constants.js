@@ -7,6 +7,7 @@ export const TOKENS = {
     WBNB: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
     BUSD: '0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56',
     USDT: '0x55d398326f99059fF775485246999027B3197955',
+    XVS: '0xcF6BB5389c92Bdda8a3747Ddb454cB7a64626C63',
 };
 
 // ── DEX Router Addresses (BSC Mainnet) ────────────────────
@@ -32,6 +33,7 @@ export const TOKEN_META = {
     [TOKENS.WBNB]: { symbol: 'WBNB', decimals: 18, color: '#F0B90B' },
     [TOKENS.BUSD]: { symbol: 'BUSD', decimals: 18, color: '#F0B90B' },
     [TOKENS.USDT]: { symbol: 'USDT', decimals: 18, color: '#26A17B' },
+    [TOKENS.XVS]: { symbol: 'XVS', decimals: 18, color: '#BD6CFF' },
 };
 
 export const ROUTER_META = {

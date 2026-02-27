@@ -10,24 +10,24 @@ export default function PriceGapCard() {
 
     return (
         <motion.div className="glass" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
                 <div>
                     <h2 className="section-title">Price Divergence</h2>
-                    <p className="section-subtitle">Real-time gap between PancakeSwap & BiSwap</p>
+                    <p className="section-subtitle">Multi-pair arbitrage monitoring</p>
                 </div>
                 {isOpp && <span className="tag tag-live">OPPORTUNITY</span>}
             </div>
 
             {/* ── Minimalist Gap Hero ─────────────────────────── */}
-            <div style={{ textAlign: 'center', padding: '32px 0 48px', marginBottom: 20 }}>
-                <p style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 16 }}>Current Spread (WBNB/BUSD)</p>
-                <div className={`font-mono ${isOpp ? 'glow-text' : ''}`} style={{ fontSize: 88, fontWeight: 400, letterSpacing: '-0.04em', color: gapColor, lineHeight: 1, textShadow: isOpp ? '' : '0 4px 12px rgba(0,0,0,0.5)' }}>
+            <div style={{ textAlign: 'center', padding: '12px 0 20px', marginBottom: 16 }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 8 }}>Primary Opportunity (Price Gap)</p>
+                <div className={`font-mono ${isOpp ? 'glow-text' : ''}`} style={{ fontSize: 40, fontWeight: 500, letterSpacing: '-0.04em', color: gapColor, lineHeight: 1, textShadow: isOpp ? '' : '0 4px 12px rgba(0,0,0,0.5)' }}>
                     {gap !== null ? `${gap.toFixed(4)}%` : '—'}
                 </div>
             </div>
 
             {/* ── Elegant Price Readings ──────────────────────── */}
-            <div className="price-2col" style={{ marginBottom: 40, background: 'rgba(255,255,255,0.02)', padding: '24px', borderRadius: '16px', boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.2)' }}>
+            <div className="price-2col" style={{ marginBottom: 24, background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '12px', boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.2)' }}>
                 <PriceItem label="PancakeSwap" price={pcsPrice} error={pcsError} />
                 <PriceItem label="BiSwap" price={biswapPrice} error={biswapError} />
             </div>
@@ -53,9 +53,9 @@ export default function PriceGapCard() {
 
 function PriceItem({ label, price, error }) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)' }}>{label}</p>
-            <p className="font-mono" style={{ fontSize: 26, fontWeight: 500, color: 'var(--text-primary)', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)' }}>{label}</p>
+            <p className="font-mono" style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
                 {error ? <span style={{ color: 'var(--red)' }}>Err</span> : price !== null ? formatPrice(price, 8) : <span style={{ opacity: 0.3 }}>Wait</span>}
             </p>
         </div>
