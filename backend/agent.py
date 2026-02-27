@@ -225,6 +225,7 @@ def execute_on_chain(confidence, best_pair, gap):
 
     try:
         print("         📡 Attempting requestArbitrage (testnet)...")
+        # Use 'pending' to avoid nonce collision with the admin TX just sent
         nonce = w3_testnet.eth.get_transaction_count(account.address, "pending")
         borrow_amt = w3_testnet.to_wei("0.001", "ether")
 
@@ -394,6 +395,7 @@ def main():
             time.sleep(POLL_INTERVAL_SEC)
 
         except KeyboardInterrupt:
+            # Wrap KeyboardInterrupt in the loop for a clean exit
             print(f"\n\n🛑 Stopped after {tick_count} ticks, {executions} executions.")
             print(f"   {len(price_history)} scans collected.")
             break
