@@ -17,6 +17,13 @@ __pycache__/
 *.pyc
 backend/venv/
 backend/.venv/
+backend/logs/
+
+# ── Docs (private walkthrough) ─────────
+docs/
+
+# ── Deploy output ──────────────────────
+deployment.json
 
 # ── IDE / OS ───────────────────────────
 .vscode/

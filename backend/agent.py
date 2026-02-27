@@ -142,6 +142,8 @@ def main():
             break
         except Exception as e:
             print(f"  ⚠️  Error: {e}")
+            time.sleep(POLL_INTERVAL_SEC)
+            continue
 
         time.sleep(POLL_INTERVAL_SEC)
 
