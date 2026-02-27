@@ -9,8 +9,8 @@ export default function ExecutionLog() {
         <motion.div className="glass" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.15 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
                 <div>
-                    <h2 className="section-title">Execution Log</h2>
-                    <p className="section-subtitle">On-chain ArbitrageExecuted events</p>
+                    <h2 className="section-title">System Activity</h2>
+                    <p className="section-subtitle">Real-time detections & execution logs</p>
                 </div>
             </div>
 
@@ -39,12 +39,16 @@ export default function ExecutionLog() {
                         <tbody>
                             {trades.map((t, i) => (
                                 <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                    <td className="font-mono" style={{ padding: '24px 0', color: 'var(--text-secondary)', fontSize: 14 }}>{t.timestamp ? timeAgo(t.timestamp) : '—'}</td>
-                                    <td className="font-mono" style={{ padding: '24px 0', fontSize: 14, color: 'var(--text-primary)' }}>{truncateAddress(t.tokenBorrow)} <span style={{ color: 'var(--text-tertiary)' }}>→</span> {truncateAddress(t.tokenTarget)}</td>
-                                    <td className="font-mono" style={{ padding: '24px 0', textAlign: 'right', color: 'var(--green)', fontSize: 15, fontWeight: 600, textShadow: '0 2px 4px rgba(16,185,129,0.3)' }}>+{formatBNB(t.profit)}</td>
-                                    <td style={{ padding: '24px 0', textAlign: 'right' }}>
+                                    <td className="font-mono" style={{ padding: '10px 0', color: 'var(--text-secondary)', fontSize: 12 }}>{t.timestamp ? timeAgo(t.timestamp) : '—'}</td>
+                                    <td className="font-mono" style={{ padding: '10px 0', fontSize: 12, color: 'var(--text-primary)' }}>
+                                        {t.tokenBorrow?.startsWith('0x') ? truncateAddress(t.tokenBorrow) : t.tokenBorrow}
+                                        <span style={{ color: 'var(--text-tertiary)' }}> → </span>
+                                        {t.tokenTarget?.startsWith('0x') ? truncateAddress(t.tokenTarget) : t.tokenTarget}
+                                    </td>
+                                    <td className="font-mono" style={{ padding: '10px 0', textAlign: 'right', color: 'var(--green)', fontSize: 13, fontWeight: 600 }}>+{formatBNB(t.profit)}</td>
+                                    <td style={{ padding: '10px 0', textAlign: 'right' }}>
                                         <a href={getBscScanUrl(t.txHash)} target="_blank" rel="noopener noreferrer" className="font-mono"
-                                            style={{ color: 'var(--accent)', textDecoration: 'none', borderBottom: '1px dashed var(--accent)', fontSize: 14 }}>{t.txHash ? `${t.txHash.slice(0, 8)}…` : '—'}</a>
+                                            style={{ color: 'var(--accent)', textDecoration: 'none', borderBottom: '1px dashed var(--accent)', fontSize: 12 }}>{t.txHash ? `${t.txHash.slice(0, 8)}…` : '—'}</a>
                                     </td>
                                 </tr>
                             ))}

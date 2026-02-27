@@ -1,175 +1,80 @@
-# ⚡ FlashGap AI — Predictive Arbitrage Agent on BNB Chain
+# ⚡ FlashGap AI
 
-AI-powered flash-swap arbitrage system that detects price gaps between PancakeSwap and BiSwap, uses GPT-4o-mini for confidence scoring, and executes atomic on-chain trades when profitable.
+**Algorithmic Arbitrage with AI-Gated Execution on BNB Chain.**
 
-**Built for**: BNB Chain x YZi Labs Hack Series — Bengaluru
-
----
-
-## 🏗️ Architecture
-
-```
-┌─────────────┐     ┌──────────────┐     ┌──────────────────┐
-│  AI Watcher  │────▶│  FlashGap.sol │────▶│  PancakeSwap /   │
-│  (Python)    │     │  (On-Chain)   │     │  BiSwap (DEXs)   │
-└─────┬───────┘     └──────────────┘     └──────────────────┘
-      │                                          │
-      ▼                                          ▼
-┌─────────────┐                          ┌──────────────────┐
-│  GPT-4o-mini│                          │  Flash Swap       │
-│  Confidence │                          │  Arb Execution    │
-└─────────────┘                          └──────────────────┘
-      │
-      ▼
-┌─────────────┐     ┌──────────────────┐
-│  Greenfield  │     │  React Dashboard │
-│  / IPFS Logs │     │  (Vite + Wagmi)  │
-└─────────────┘     └──────────────────┘
-```
+FlashGap AI is a high-speed arbitrage bot that scans multiple liquidity pools across PancakeSwap and BiSwap. It leverages a LLaMA-3.3-70B Large Language Model (via Groq) to evaluate price gaps in real-time, only triggering on-chain transactions when confidence and profit margins exceed strict thresholds.
 
 ---
 
-## 📋 Prerequisites
-
-Before starting, make sure you have these installed:
-
-| Tool | Version | Check Command |
-|------|---------|---------------|
-| **Node.js** | ≥ 18.x | `node --version` |
-| **npm** | ≥ 9.x | `npm --version` |
-| **Python** | ≥ 3.10 | `python --version` |
-| **Git** | any | `git --version` |
-| **MetaMask** | browser extension | — |
+## 🚀 The Stack
+- **Smart Contracts:** Solidity, OpenZeppelin (Flash Swap logic).
+- **Core Engine:** Python, Web3.py.
+- **AI Brain:** LLaMA-3.3-70B (Groq API) for sub-second trade gating.
+- **Frontend:** React, Vite, Framer Motion, Wagmi/Viem.
+- **Data Layers:** Hybrid (Mainnet Price feeds + Testnet Execution logs).
 
 ---
 
-## 🚀 Quick Start (3 steps)
+## 🔥 Key Features
+- **Multi-Pair Scanner:** Scans BUSD, USDT, CAKE, ETH, XVS, and DOGE vs WBNB simultaneously.
+- **AI-Gated Execution:** 90%+ confidence threshold prevents "toxic flow" and failed trades.
+- **Flash-Swap Integration:** Zero-capital required (uses liquidity from one DEX to pay the other).
+- **Real-Time Dashboard:** Glassmorphic UI showing live mainnet blocks and testnet contract state.
+- **Execution Logging:** Structured JSON logs for every AI decision and on-chain TX.
 
-### 1️⃣ Clone & Setup Environment
+---
 
+## 🛠️ Quick Start
+
+### 1. Clone & Install
 ```bash
-git clone https://github.com/sarfraspc/novum-risk-oracle.git
+git clone https://github.com/sarfraspc/novum-risk-oracle
 cd "FlashGap Web3"
 
-# Copy the env template and fill in your keys
-cp .env.example .env
+# Install Backend
+pip install web3 python-dotenv openai
+
+# Install Frontend
+cd frontend
+npm install
 ```
 
-**Edit `.env`** and fill in:
+### 2. Environment Setup
+Create a `.env` in the root (use `.env.example` as a template):
 ```env
-DEPLOYER_PRIVATE_KEY=0xYOUR_64_CHAR_PRIVATE_KEY    # MetaMask → Account Details → Export Private Key
-OPENAI_API_KEY=sk-your-openai-key                   # https://platform.openai.com/api-keys
+# API Keys
+OPENAI_API_KEY=your_groq_api_key
+AI_BASE_URL=https://api.groq.com/openai/v1
+
+# Wallets
+DEPLOYER_PRIVATE_KEY=your_testnet_private_key
+FLASHGAP_CONTRACT_ADDRESS=0xa6acB349c32B59c20c898a025971f9e3080B6bf0
 ```
 
-### 2️⃣ Install Dependencies
-
+### 3. Run it
+**Step A: The AI Agent (Backend)**
 ```bash
-# ── Root (Smart Contracts + Hardhat) ───────
-npm install
-
-# ── Frontend (React Dashboard) ────────────
-cd frontend
-npm install
-cd ..
-
-# ── Backend (Python AI Bot) ───────────────
 cd backend
-pip install -r requirements.txt
-cd ..
+python agent.py
 ```
-
-### 3️⃣ Run Everything
-
+**Step B: The Dashboard (Frontend)**
 ```bash
-# ── Compile & Test Smart Contracts ─────────
-npx hardhat compile        # Should output: "Compiled 9 Solidity files"
-npx hardhat test           # Should output: "22 passing"
-
-# ── Start the Price Watcher Bot ────────────
-cd backend
-python agent.py            # Ctrl+C to stop
-cd ..
-
-# ── Start the Frontend Dashboard ───────────
 cd frontend
-npm run dev                # Opens at http://localhost:3000
+npm run dev
 ```
 
 ---
 
-## 🔗 Deployment (BSC Testnet)
-
-> ⚠️ You need testnet BNB. Get some from: https://www.bnbchain.org/en/testnet-faucet
-
-```bash
-# Deploy contract to BSC Testnet
-npx hardhat run scripts/deploy.js --network bsctest
-
-# Run post-deploy interaction (generates on-chain TXs)
-npx hardhat run scripts/interact.js --network bsctest
-```
-
-**Current deployment:**
-- Contract: `0xa6acB349c32B59c20c898a025971f9e3080B6bf0`
-- Explorer: https://testnet.bscscan.com/address/0xa6acB349c32B59c20c898a025971f9e3080B6bf0
+## 📜 Deployment Details
+- **Network:** BNB Smart Chain Testnet
+- **Contract:** `0xa6acB349c32B59c20c898a025971f9e3080B6bf0`
+- **Audit:** Automated Chai-matchers test suite (22/22 Passing).
 
 ---
 
-## 📁 Project Structure
+## 🛡️ Security & Compliance
+- **Flash Loan Guard:** Only repayable loops are accepted by the smart contract.
+- **Admin Gating:** Only the AI-authorized executor address can trigger `requestArbitrage`.
+- **Slippage Protection:** Minimum profit BPS is strictly enforced on-chain.
 
-```
-├── contracts/
-│   ├── FlashGap.sol              # Core arbitrage contract
-│   └── interfaces/               # DEX interfaces (Callee, Router, Pair, Factory)
-├── scripts/
-│   ├── deploy.js                 # Deploy + auto-verify on BscScan
-│   └── interact.js               # Post-deploy admin TXs
-├── test/
-│   └── FlashGap.test.js          # 22 test cases
-├── backend/
-│   ├── agent.py                  # AI Watcher Bot (price feeds + AI gating)
-│   ├── config.py                 # All settings loaded from .env
-│   ├── greenfield.py             # IPFS / Greenfield log storage
-│   └── requirements.txt          # Python dependencies
-├── frontend/                     # React dashboard (Vite + Wagmi + Tailwind)
-│   ├── src/
-│   │   ├── App.jsx               # Main layout with Header + Footer
-│   │   ├── main.jsx              # React entry (Wagmi + React Query)
-│   │   ├── index.css             # Glassmorphism design system
-│   │   ├── components/           # Dashboard cards
-│   │   ├── hooks/                # Custom React hooks (prices, stats)
-│   │   └── utils/                # Formatters
-│   └── package.json
-├── hardhat.config.js             # Solidity 0.8.20, BSC networks, optimizer
-├── package.json                  # Root deps: Hardhat + OpenZeppelin
-├── .env.example                  # Template (safe to commit)
-└── .gitignore
-```
-
----
-
-## 🔑 Key Features
-
-- **Flash Swap Arbitrage** — Zero-capital trades using PancakeSwap V2 flash swaps
-- **AI Gating** — GPT-4o-mini evaluates price gaps before execution
-- **On-Chain Safety** — ReentrancyGuard, Ownable, Pausable, slippage guard, min-profit check
-- **Decentralized Logging** — Execution proofs uploaded to BNB Greenfield/IPFS
-- **Live Dashboard** — Real-time price gaps, AI confidence, and execution history
-- **Emergency Controls** — Pause circuit-breaker + token/BNB rescue functions
-
----
-
-## 🛡️ Security
-
-- `onlyOwner` — Only the deployer wallet can trigger trades
-- `nonReentrant` — Prevents reentrancy attacks
-- `whenNotPaused` — Emergency kill-switch
-- Custom errors — Gas-efficient reverts with detailed error data
-- Slippage guard — Per-call `minAmountOut` + global `maxSlippageBps`
-- Min profit threshold — Won't execute unprofitable trades
-
----
-
-## 📜 License
-
-MIT
+*Built for BNB Chain x YZi Labs Hack Series · Bengaluru · 2026*
