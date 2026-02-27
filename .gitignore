@@ -1,0 +1,27 @@
+# ── Dependencies ───────────────────────
+node_modules/
+frontend/node_modules/
+
+# ── Build artifacts ────────────────────
+artifacts/
+cache/
+typechain-types/
+frontend/dist/
+
+# ── Environment ────────────────────────
+.env
+.env.local
+
+# ── Python ─────────────────────────────
+__pycache__/
+*.pyc
+backend/venv/
+backend/.venv/
+
+# ── IDE / OS ───────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
