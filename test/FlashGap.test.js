@@ -14,6 +14,9 @@ describe("FlashGap", function () {
         await flashGap.waitForDeployment();
     });
 
+    // ═══════════════════════════════════════════════════════════
+    //  DEPLOYMENT
+    // ═══════════════════════════════════════════════════════════
     describe("Deployment", function () {
         it("should set the correct owner", async function () {
             expect(await flashGap.owner()).to.equal(owner.address);
@@ -27,12 +30,30 @@ describe("FlashGap", function () {
             expect(await flashGap.minProfitBps()).to.equal(MIN_PROFIT_BPS);
         });
 
+        it("should set default maxSlippageBps to 100 (1%)", async function () {
+            expect(await flashGap.maxSlippageBps()).to.equal(100);
+        });
+
+        it("should set default flashFeeNumerator to 25 (0.25%)", async function () {
+            expect(await flashGap.flashFeeNumerator()).to.equal(25);
+        });
+
         it("should initialise trade stats to zero", async function () {
             expect(await flashGap.totalTrades()).to.equal(0);
             expect(await flashGap.totalProfit()).to.equal(0);
         });
+
+        it("should revert deployment with zero-address factory", async function () {
+            const FlashGap = await ethers.getContractFactory("FlashGap");
+            await expect(
+                FlashGap.deploy(ethers.ZeroAddress, MIN_PROFIT_BPS)
+            ).to.be.revertedWithCustomError(flashGap, "ZeroAddress");
+        });
     });
 
+    // ═══════════════════════════════════════════════════════════
+    //  ADMIN FUNCTIONS
+    // ═══════════════════════════════════════════════════════════
     describe("Admin functions", function () {
         it("should allow owner to update minProfitBps", async function () {
             await expect(flashGap.setMinProfitBps(50))
@@ -40,6 +61,34 @@ describe("FlashGap", function () {
                 .withArgs(MIN_PROFIT_BPS, 50);
 
             expect(await flashGap.minProfitBps()).to.equal(50);
+        });
+
+        it("should allow owner to update maxSlippageBps", async function () {
+            await expect(flashGap.setMaxSlippageBps(200))
+                .to.emit(flashGap, "MaxSlippageUpdated")
+                .withArgs(100, 200);
+
+            expect(await flashGap.maxSlippageBps()).to.equal(200);
+        });
+
+        it("should allow owner to update factory", async function () {
+            const newFactory = "0x0000000000000000000000000000000000000099";
+            await expect(flashGap.setFactory(newFactory))
+                .to.emit(flashGap, "FactoryUpdated")
+                .withArgs(FAKE_FACTORY, newFactory);
+
+            expect(await flashGap.factoryA()).to.equal(newFactory);
+        });
+
+        it("should revert setFactory with zero address", async function () {
+            await expect(
+                flashGap.setFactory(ethers.ZeroAddress)
+            ).to.be.revertedWithCustomError(flashGap, "ZeroAddress");
+        });
+
+        it("should allow owner to update flashFeeNumerator", async function () {
+            await flashGap.setFlashFeeNumerator(30);
+            expect(await flashGap.flashFeeNumerator()).to.equal(30);
         });
 
         it("should reject non-owner from updating minProfitBps", async function () {
@@ -55,7 +104,7 @@ describe("FlashGap", function () {
             const routerB = "0x0000000000000000000000000000000000000005";
 
             await expect(
-                flashGap.connect(addr1).requestArbitrage(tokenA, tokenB, 1000, routerA, routerB)
+                flashGap.connect(addr1).requestArbitrage(tokenA, tokenB, 1000, routerA, routerB, 0)
             ).to.be.revertedWithCustomError(flashGap, "OwnableUnauthorizedAccount");
         });
 
@@ -66,12 +115,42 @@ describe("FlashGap", function () {
             const routerB = "0x0000000000000000000000000000000000000005";
 
             await expect(
-                flashGap.requestArbitrage(tokenA, tokenB, 0, routerA, routerB)
-            ).to.be.revertedWith("FlashGap: zero amount");
+                flashGap.requestArbitrage(tokenA, tokenB, 0, routerA, routerB, 0)
+            ).to.be.revertedWithCustomError(flashGap, "ZeroAmount");
         });
     });
 
-    describe("Receive BNB", function () {
+    // ═══════════════════════════════════════════════════════════
+    //  PAUSE / UNPAUSE
+    // ═══════════════════════════════════════════════════════════
+    describe("Pausable", function () {
+        it("should allow owner to pause and unpause", async function () {
+            await flashGap.pause();
+            // requestArbitrage should revert while paused
+            const tokenA = "0x0000000000000000000000000000000000000002";
+            const tokenB = "0x0000000000000000000000000000000000000003";
+            const routerA = "0x0000000000000000000000000000000000000004";
+            const routerB = "0x0000000000000000000000000000000000000005";
+
+            await expect(
+                flashGap.requestArbitrage(tokenA, tokenB, 1000, routerA, routerB, 0)
+            ).to.be.revertedWithCustomError(flashGap, "EnforcedPause");
+
+            await flashGap.unpause();
+            // after unpause it should proceed (will revert at factory call, not pause)
+        });
+
+        it("should reject non-owner from pausing", async function () {
+            await expect(
+                flashGap.connect(addr1).pause()
+            ).to.be.revertedWithCustomError(flashGap, "OwnableUnauthorizedAccount");
+        });
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    //  EMERGENCY WITHDRAW
+    // ═══════════════════════════════════════════════════════════
+    describe("Emergency withdraw", function () {
         it("should accept BNB deposits", async function () {
             const tx = await owner.sendTransaction({
                 to: await flashGap.getAddress(),
@@ -82,17 +161,38 @@ describe("FlashGap", function () {
             expect(balance).to.equal(ethers.parseEther("1.0"));
         });
 
-        it("should allow owner to withdraw BNB", async function () {
-            // Send BNB to contract
+        it("should allow owner to emergency withdraw BNB", async function () {
             await owner.sendTransaction({
                 to: await flashGap.getAddress(),
                 value: ethers.parseEther("1.0"),
             });
 
-            // Withdraw
-            await flashGap.withdrawBNB();
+            await expect(flashGap.emergencyWithdrawBNB())
+                .to.emit(flashGap, "EmergencyWithdrawBNB");
+
             const balance = await ethers.provider.getBalance(await flashGap.getAddress());
             expect(balance).to.equal(0);
+        });
+
+        it("should reject non-owner from emergency withdraw BNB", async function () {
+            await expect(
+                flashGap.connect(addr1).emergencyWithdrawBNB()
+            ).to.be.revertedWithCustomError(flashGap, "OwnableUnauthorizedAccount");
+        });
+
+        it("should reject emergencyWithdrawToken with zero address", async function () {
+            await expect(
+                flashGap.emergencyWithdrawToken(ethers.ZeroAddress, 100)
+            ).to.be.revertedWithCustomError(flashGap, "ZeroAddress");
+        });
+    });
+
+    // ═══════════════════════════════════════════════════════════
+    //  CONSTANTS
+    // ═══════════════════════════════════════════════════════════
+    describe("Constants", function () {
+        it("FEE_DENOMINATOR should be 10000", async function () {
+            expect(await flashGap.FEE_DENOMINATOR()).to.equal(10000);
         });
     });
 });
