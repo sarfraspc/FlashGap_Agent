@@ -1,119 +1,57 @@
-const MOCK_LOGS = [
-    {
-        ts: "2026-02-27T16:55:12Z",
-        pair: "BUSD → WBNB",
-        gap: "0.18%",
-        confidence: "87%",
-        profit: "+$1.24",
-        tx: "0xabc1…ef23",
-        status: "success",
-        ipfs: "Qm…abc1",
-    },
-    {
-        ts: "2026-02-27T16:48:03Z",
-        pair: "BUSD → WBNB",
-        gap: "0.22%",
-        confidence: "91%",
-        profit: "+$2.05",
-        tx: "0xdef4…ab56",
-        status: "success",
-        ipfs: "Qm…def4",
-    },
-    {
-        ts: "2026-02-27T16:40:58Z",
-        pair: "USDT → WBNB",
-        gap: "0.09%",
-        confidence: "74%",
-        profit: "—",
-        tx: "—",
-        status: "skipped",
-        ipfs: "—",
-    },
-    {
-        ts: "2026-02-27T16:33:21Z",
-        pair: "BUSD → WBNB",
-        gap: "0.31%",
-        confidence: "94%",
-        profit: "+$3.80",
-        tx: "0x789a…cd01",
-        status: "success",
-        ipfs: "Qm…789a",
-    },
-    {
-        ts: "2026-02-27T16:25:09Z",
-        pair: "BUSD → WBNB",
-        gap: "0.14%",
-        confidence: "82%",
-        profit: "+$0.95",
-        tx: "0xbbb2…ee34",
-        status: "reverted",
-        ipfs: "Qm…bbb2",
-    },
-];
+import { motion } from 'framer-motion';
+import { useTradeHistory } from '../hooks/useTradeHistory';
+import { formatBNB, truncateAddress, timeAgo, getBscScanUrl } from '../utils/formatters';
 
 export default function ExecutionLog() {
+    const { trades, isLoading } = useTradeHistory();
+
     return (
-        <div className="glass-card">
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold flex items-center gap-2">
-                    <span className="text-2xl">📋</span> Execution Log
-                </h2>
-                <span className="text-xs text-[var(--text-secondary)]">
-                    Last {MOCK_LOGS.length} entries
-                </span>
+        <motion.div className="glass" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.15 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 40 }}>
+                <div>
+                    <h2 className="section-title">Execution Log</h2>
+                    <p className="section-subtitle">On-chain ArbitrageExecuted events</p>
+                </div>
             </div>
 
-            <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                    <thead>
-                        <tr className="text-[var(--text-secondary)] text-xs border-b border-white/10">
-                            <th className="py-2 text-left">Timestamp</th>
-                            <th className="py-2 text-left">Pair</th>
-                            <th className="py-2 text-right">Gap</th>
-                            <th className="py-2 text-right">AI Conf.</th>
-                            <th className="py-2 text-right">Profit</th>
-                            <th className="py-2 text-center">Status</th>
-                            <th className="py-2 text-right">TX Hash</th>
-                            <th className="py-2 text-right">IPFS</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {MOCK_LOGS.map((log, i) => (
-                            <tr
-                                key={i}
-                                className="border-b border-white/5 hover:bg-white/5 transition-colors"
-                            >
-                                <td className="py-2 font-mono text-xs">
-                                    {new Date(log.ts).toLocaleTimeString()}
-                                </td>
-                                <td className="py-2 text-xs">{log.pair}</td>
-                                <td className="py-2 text-right font-mono text-xs">{log.gap}</td>
-                                <td className="py-2 text-right font-mono text-xs">{log.confidence}</td>
-                                <td className={`py-2 text-right font-mono text-xs font-semibold ${log.profit.startsWith("+") ? "text-[var(--green)]" : ""
-                                    }`}>
-                                    {log.profit}
-                                </td>
-                                <td className="py-2 text-center">
-                                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${log.status === "success"
-                                            ? "bg-green-500/10 text-green-400"
-                                            : log.status === "reverted"
-                                                ? "bg-red-500/10 text-red-400"
-                                                : "bg-white/10 text-[var(--text-secondary)]"
-                                        }`}>
-                                        {log.status}
-                                    </span>
-                                </td>
-                                <td className="py-2 text-right font-mono text-xs text-[var(--accent)]">
-                                    {log.tx}
-                                </td>
-                                <td className="py-2 text-right font-mono text-xs text-blue-400">
-                                    {log.ipfs}
-                                </td>
+            {isLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                    <p style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-secondary)' }}>Syncing events from chain…</p>
+                </div>
+            ) : trades.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                    <h3 style={{ fontSize: 22, fontWeight: 400, marginBottom: 12, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>Awaiting Signals</h3>
+                    <p style={{ fontSize: 15, color: 'var(--text-secondary)' }}>
+                        System is initialized and monitoring mempools.
+                    </p>
+                </div>
+            ) : (
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <thead>
+                            <tr style={{ color: 'var(--text-tertiary)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                <th style={{ padding: '16px 0', fontWeight: 600, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Time Age</th>
+                                <th style={{ padding: '16px 0', fontWeight: 600, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Token Pair</th>
+                                <th style={{ padding: '16px 0', fontWeight: 600, fontSize: 13, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Profit (BNB)</th>
+                                <th style={{ padding: '16px 0', fontWeight: 600, fontSize: 13, textAlign: 'right', textTransform: 'uppercase', letterSpacing: '0.05em' }}>TX Receipt</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+                        </thead>
+                        <tbody>
+                            {trades.map((t, i) => (
+                                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <td className="font-mono" style={{ padding: '24px 0', color: 'var(--text-secondary)', fontSize: 14 }}>{t.timestamp ? timeAgo(t.timestamp) : '—'}</td>
+                                    <td className="font-mono" style={{ padding: '24px 0', fontSize: 14, color: 'var(--text-primary)' }}>{truncateAddress(t.tokenBorrow)} <span style={{ color: 'var(--text-tertiary)' }}>→</span> {truncateAddress(t.tokenTarget)}</td>
+                                    <td className="font-mono" style={{ padding: '24px 0', textAlign: 'right', color: 'var(--green)', fontSize: 15, fontWeight: 600, textShadow: '0 2px 4px rgba(16,185,129,0.3)' }}>+{formatBNB(t.profit)}</td>
+                                    <td style={{ padding: '24px 0', textAlign: 'right' }}>
+                                        <a href={getBscScanUrl(t.txHash)} target="_blank" rel="noopener noreferrer" className="font-mono"
+                                            style={{ color: 'var(--accent)', textDecoration: 'none', borderBottom: '1px dashed var(--accent)', fontSize: 14 }}>{t.txHash ? `${t.txHash.slice(0, 8)}…` : '—'}</a>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </motion.div>
     );
 }
