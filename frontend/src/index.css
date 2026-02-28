@@ -8,12 +8,12 @@
    ELEVATED GLASSMORPHISM
    ══════════════════════════════════════════════════════════ */
 :root {
-  --bg-deep: #050814;
-  --bg-card: rgba(255, 255, 255, 0.04);
-  --bg-card-hover: rgba(255, 255, 255, 0.07);
+  --bg-deep: #0B0E17;
+  --bg-card: rgba(255, 255, 255, 0.06);
+  --bg-card-hover: rgba(255, 255, 255, 0.1);
 
-  --border-glass: rgba(255, 255, 255, 0.1);
-  --border-glass-light: rgba(255, 255, 255, 0.18);
+  --border-glass: rgba(255, 255, 255, 0.15);
+  --border-glass-light: rgba(255, 255, 255, 0.25);
 
   /* Lighter text for much better visibility */
   --text-primary: #FFFFFF;
@@ -28,7 +28,7 @@
   --purple: #8B5CF6;
 
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
-  --glass-blur: 40px;
+  --glass-blur: 48px;
 }
 
 *,
@@ -75,14 +75,14 @@ body {
    ══════════════════════════════════════════════════════════ */
 .app-container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 32px 40px;
 }
 
 .header-container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 0 40px;
   display: flex;
@@ -99,13 +99,13 @@ body {
 .main-grid {
   display: grid;
   grid-template-columns: 10fr 9fr;
-  gap: 24px;
+  gap: 12px;
 }
 
 .log-grid {
   display: grid;
   grid-template-columns: 5fr 4fr;
-  gap: 24px;
+  gap: 12px;
 }
 
 .soon-grid {
@@ -220,18 +220,18 @@ body {
    ══════════════════════════════════════════════════════════ */
 .glass {
   background: var(--bg-card);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   border: 1px solid var(--border-glass);
   border-top-color: var(--border-glass-light);
   border-left-color: var(--border-glass-light);
-  border-radius: 8px;
+  border-radius: 16px;
   padding: 24px;
   position: relative;
   overflow: hidden;
   transition: all 0.4s var(--ease);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0px rgba(255, 255, 255, 0.05);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
 
 /* Crypto/Money glow line effect across cards */
@@ -270,18 +270,18 @@ body {
 /* Stat card - slightly smaller padding */
 .glass-stat {
   background: var(--bg-card);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   border: 1px solid var(--border-glass);
   border-top-color: var(--border-glass-light);
   border-left-color: var(--border-glass-light);
-  border-radius: 6px;
-  padding: 8px 10px;
+  border-radius: 12px;
+  padding: 12px 14px;
   position: relative;
   overflow: hidden;
   transition: all 0.3s var(--ease);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0px rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0px rgba(255, 255, 255, 0.08);
 }
 
 .glass-stat::before {

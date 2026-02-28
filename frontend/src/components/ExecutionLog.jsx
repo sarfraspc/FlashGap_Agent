@@ -3,7 +3,7 @@ import { useTradeHistory } from '../hooks/useTradeHistory';
 import { formatBNB, truncateAddress, timeAgo, getBscScanUrl } from '../utils/formatters';
 
 export default function ExecutionLog() {
-    const { trades, isLoading } = useTradeHistory();
+    const { trades, isLoading, isDemo } = useTradeHistory();
 
     return (
         <motion.div className="glass" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.15 }}>
@@ -12,6 +12,11 @@ export default function ExecutionLog() {
                     <h2 className="section-title">System Activity</h2>
                     <p className="section-subtitle">Real-time detections & execution logs</p>
                 </div>
+                {isDemo && (
+                    <div style={{ background: 'rgba(240, 185, 11, 0.1)', border: '1px solid rgba(240, 185, 11, 0.3)', padding: '6px 12px', borderRadius: 8 }}>
+                        <p style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Demo Simulation Active</p>
+                    </div>
+                )}
             </div>
 
             {isLoading ? (

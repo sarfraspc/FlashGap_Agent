@@ -1,19 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useLivePrices } from '../hooks/useLivePrices';
-import { formatPrice } from '../utils/formatters';
+import { useAutoTrade } from '../contexts/AutoTradeContext';
 
 export default function ArbitrageFlow() {
-    const { pcsPrice, biswapPrice, gap } = useLivePrices();
-    const est = pcsPrice && biswapPrice && gap ? (gap * 0.01 * 600).toFixed(2) : null;
+    const { gap } = useLivePrices();
+    const { autoTrade } = useAutoTrade();
+    const gapPct = gap !== null ? gap.toFixed(2) : null;
     const hot = gap !== null && gap > 0.1;
 
     const steps = [
         { name: 'Flash Borrow', sub: 'WBNB Loan', isExchange: false },
-        { name: 'PancakeSwap', sub: 'Receive XVS', isExchange: true },
+        { name: 'PancakeSwap', sub: 'Routing', isExchange: true },
         { name: 'Liquidity Swap', sub: 'Asset Routed', isExchange: false },
         { name: 'BiSwap', sub: 'Execute Sell', isExchange: true },
-        { name: 'Repay & Profit', sub: est && est > 0 ? `+$${est} Net` : 'Arbitrage', isExchange: false, highlight: hot },
+        { name: 'Repay & Profit', sub: gapPct ? `Expected ${gapPct}%` : 'Arbitrage', isExchange: false, highlight: hot },
     ];
 
     return (
@@ -23,7 +24,8 @@ export default function ArbitrageFlow() {
                     <h2 className="section-title">Atomic Execution Path</h2>
                     <p className="section-subtitle">Step-by-step smart contract routing</p>
                 </div>
-                {hot && <span className="tag tag-live">Executing</span>}
+                {!autoTrade && <span className="tag" style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--red)', border: '1px solid rgba(239,68,68,0.3)' }}>Agent Paused</span>}
+                {autoTrade && hot && <span className="tag tag-live">Executing</span>}
             </div>
 
             {/* Ultra Clean Flow Diagram */}
@@ -32,7 +34,9 @@ export default function ArbitrageFlow() {
                 alignItems: 'stretch',
                 justifyContent: 'center',
                 padding: '0',
-                gap: 8
+                gap: 8,
+                opacity: autoTrade ? 1 : 0.4,
+                transition: 'opacity 0.5s'
             }}>
                 {steps.map((s, i) => (
                     <React.Fragment key={i}>

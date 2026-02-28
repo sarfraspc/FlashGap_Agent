@@ -173,14 +173,15 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
         if (p.minAmountOut > 0 && finalAmount < p.minAmountOut) {
             revert SlippageExceeded(finalAmount, p.minAmountOut);
         }
+        // Repayment = borrowed + flash fee
+        uint256 repayAmount = p.amount + (p.amount * flashFeeNumerator / FEE_DENOMINATOR);
+
         // Slippage guard (global)
-        uint256 slippageFloor = p.amount - (p.amount * maxSlippageBps / FEE_DENOMINATOR);
+        uint256 slippageFloor = repayAmount - (repayAmount * maxSlippageBps / FEE_DENOMINATOR);
         if (finalAmount < slippageFloor) {
             revert SlippageExceeded(finalAmount, slippageFloor);
         }
 
-        // Repayment = borrowed + flash fee
-        uint256 repayAmount = p.amount + (p.amount * flashFeeNumerator / FEE_DENOMINATOR);
         if (finalAmount < repayAmount) {
             revert NotProfitable(finalAmount, repayAmount);
         }
@@ -288,6 +289,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
 
     function _approveIfNeeded(address token, address spender, uint256 amount) internal {
         if (IERC20(token).allowance(address(this), spender) < amount) {
+            IERC20(token).approve(spender, 0);
             IERC20(token).approve(spender, type(uint256).max);
         }
     }

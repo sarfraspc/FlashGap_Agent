@@ -11,19 +11,20 @@ FlashGap AI — Full Agent (Steps 3-6) + Multi-Pair Scanner
 import time
 import json
 import datetime
+import os
 from web3 import Web3
 
 from config import (
     BSC_RPC, BSC_TESTNET_RPC,
     PANCAKE_ROUTER, BISWAP_ROUTER,
-    WBNB, BUSD,
     TESTNET_WBNB, TESTNET_BUSD, TESTNET_PANCAKE_ROUTER,
+    TESTNET_BISWAP_ROUTER,
     ROUTER_ABI, FLASHGAP_ABI, SCAN_PAIRS,
     POLL_INTERVAL_SEC, BORROW_AMOUNT_WEI,
     OPENAI_API_KEY, AI_BASE_URL, AI_MODEL, CONFIDENCE_THRESHOLD,
     FLASHGAP_CONTRACT, DEPLOYER_PRIVATE_KEY,
 )
-from greenfield import upload_log
+from greenfield import upload_log, get_recent_logs, get_total_logs_count
 
 # ── Web3 connections ──────────────────────────────────────
 w3_mainnet = Web3(Web3.HTTPProvider(BSC_RPC))
@@ -129,7 +130,7 @@ def scan_all_pairs(pancake, biswap):
     return results
 
 
-def ask_ai(scan_results, price_history):
+def ask_ai(scan_results, price_history, recent_logs=None):
     if not ai_enabled:
         if not scan_results:
             return 0.0, "No data", None
@@ -148,6 +149,22 @@ def ask_ai(scan_results, price_history):
         history_str = f"\n\nRecent history of best pair ({price_history[-1].get('best_pair', 'N/A')}):\n"
         history_str += json.dumps(price_history[-10:], indent=2)
 
+    learning_context = ""
+    if recent_logs and scan_results:
+        pair_to_analyze = scan_results[0]["label"]
+        fails = 0
+        successes = 0
+        for log in recent_logs:
+            if log.get("ai", {}).get("best_pair") == pair_to_analyze:
+                arb_tx = log.get("transactions", {}).get("arb_tx", {}) or {}
+                status = arb_tx.get("status", "")
+                if "Rever" in status or "fail" in status.lower() or "error" in arb_tx:
+                    fails += 1
+                elif "Success" in status:
+                    successes += 1
+        if fails > 0 or successes > 0:
+            learning_context = f"\n\nGREENFIELD HISTORICAL LOGS (Self-Learning Context):\nWe have traded {pair_to_analyze} recently. Results: {successes} successes, {fails} failures/reverts.\nIf you see mostly failures, reduce your confidence or recommend 'skip'. If successful, you can be more confident."
+
     prompt = f"""You are an AI arbitrage evaluator for a DeFi flash-swap bot on BNB Chain.
 
 CURRENT SCAN — 6 pairs across PancakeSwap vs BiSwap:
@@ -155,6 +172,7 @@ CURRENT SCAN — 6 pairs across PancakeSwap vs BiSwap:
 
 Flash swap fee: 0.25% (gap must exceed this for profit)
 {history_str}
+{learning_context}
 
 Evaluate:
 1. Which pair has the best opportunity RIGHT NOW?
@@ -176,6 +194,11 @@ Respond in EXACTLY this JSON format:
             max_tokens=200,
         )
         raw = response.choices[0].message.content.strip()
+        if raw.startswith("```json"):
+            raw = raw.split("```json")[1].split("```")[0].strip()
+        elif raw.startswith("```"):
+            raw = raw.split("```")[1].split("```")[0].strip()
+
         result = json.loads(raw)
         return (
             float(result.get("confidence", 0)),
@@ -188,7 +211,7 @@ Respond in EXACTLY this JSON format:
         return 0.0, f"AI error: {str(e)[:80]}", None
 
 
-def execute_on_chain(confidence, best_pair, gap):
+def execute_on_chain(confidence, best_pair, gap, direction):
     results = {"admin_tx": None, "arb_tx": None, "error": None}
 
     if not can_execute:
@@ -199,11 +222,12 @@ def execute_on_chain(confidence, best_pair, gap):
         print("         📡 Sending admin TX: setMinProfitBps(30)...")
         nonce = w3_testnet.eth.get_transaction_count(account.address)
 
+        current_gas_price = w3_testnet.eth.gas_price
         admin_tx = contract.functions.setMinProfitBps(30).build_transaction({
             "from": account.address,
             "nonce": nonce,
-            "gas": 100_000,
-            "gasPrice": w3_testnet.to_wei("10", "gwei"),
+            "gas": 150_000,
+            "gasPrice": current_gas_price,
             "chainId": 97,
         })
         signed = account.sign_transaction(admin_tx)
@@ -229,18 +253,26 @@ def execute_on_chain(confidence, best_pair, gap):
         nonce = w3_testnet.eth.get_transaction_count(account.address, "pending")
         borrow_amt = w3_testnet.to_wei("0.001", "ether")
 
+        if "Buy PCS" in direction:
+            router_a = TESTNET_PANCAKE_ROUTER
+            router_b = TESTNET_BISWAP_ROUTER
+        else:
+            router_a = TESTNET_BISWAP_ROUTER
+            router_b = TESTNET_PANCAKE_ROUTER
+
+        current_gas_price = w3_testnet.eth.gas_price
         arb_tx = contract.functions.requestArbitrage(
             Web3.to_checksum_address(TESTNET_BUSD),
             Web3.to_checksum_address(TESTNET_WBNB),
             borrow_amt,
-            Web3.to_checksum_address(TESTNET_PANCAKE_ROUTER),
-            Web3.to_checksum_address(TESTNET_PANCAKE_ROUTER),
+            Web3.to_checksum_address(router_a),
+            Web3.to_checksum_address(router_b),
             0,
         ).build_transaction({
             "from": account.address,
             "nonce": nonce,
-            "gas": 500_000,
-            "gasPrice": w3_testnet.to_wei("10", "gwei"),
+            "gas": 1_000_000,
+            "gasPrice": current_gas_price,
             "chainId": 97,
         })
         signed = account.sign_transaction(arb_tx)
@@ -298,7 +330,7 @@ def main():
         try:
             trades = contract.functions.totalTrades().call()
             profit = contract.functions.totalProfit().call()
-            print(f"\n── Contract State ──")
+            print("\n── Contract State ──")
             print(f"  totalTrades: {trades}  |  totalProfit: {profit}")
         except Exception as e:
             print(f"  ⚠️  Cannot read contract: {e}")
@@ -343,9 +375,28 @@ def main():
             if len(price_history) > 100:
                 price_history = price_history[-50:]
 
+            # Write latest scan data to frontend on every tick
+            ui_state_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "public", "ai_state.json")
+            try:
+                current_state = {}
+                if os.path.exists(ui_state_path):
+                    with open(ui_state_path) as f:
+                        current_state = json.load(f)
+                current_state["best_pair"] = best["label"]
+                current_state["best_gap"] = round(best["gap_pct"], 4)
+                current_state["profitable"] = best["profitable"]
+                current_state["pairs_scanned"] = len(scan)
+                current_state["scan_time"] = now_iso
+                current_state["rag_count"] = get_total_logs_count()
+                with open(ui_state_path, "w") as f:
+                    json.dump(current_state, f)
+            except Exception:
+                pass
+
             # ── AI evaluation (every 5th tick) ────────────
             if tick_count % ai_call_interval == 0 and len(price_history) >= 3:
-                confidence, reasoning, ai_pick = ask_ai(scan, price_history)
+                recent_logs = get_recent_logs(20)
+                confidence, reasoning, ai_pick = ask_ai(scan, price_history, recent_logs)
 
                 # Print scan summary
                 print(f"  {now}  ── Scan ({len(scan)} pairs) ──")
@@ -354,11 +405,30 @@ def main():
                     print(f"         {r['label']:<12} Gap={r['gap_pct']:.4f}%{flag}")
                 print(f"         🤖 AI: {confidence*100:.1f}% — {reasoning}")
 
+                # Update frontend proxy with live AI data
+                ui_state_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "public", "ai_state.json")
+                try:
+                    with open(ui_state_path, "w") as f:
+                        json.dump({
+                            "confidence": confidence,
+                            "reasoning": reasoning,
+                            "ai_pick": ai_pick,
+                            "timestamp": now_iso,
+                            "rag_count": get_total_logs_count()
+                        }, f)
+                except Exception as e:
+                    pass
+
                 if confidence >= CONFIDENCE_THRESHOLD:
                     print(f"         🔥 EXECUTING on {ai_pick or best['label']}")
                     executions += 1
 
-                    tx_results = execute_on_chain(confidence, ai_pick or best["label"], best["gap_pct"])
+                    pick_label = ai_pick or best["label"]
+                    pick_data = next((r for r in scan if r["label"] == pick_label), best)
+
+                    tx_results = execute_on_chain(
+                        confidence, pick_label, pick_data["gap_pct"], pick_data["direction"]
+                    )
 
                     log_entry = {
                         "timestamp": now_iso,

@@ -46,3 +46,9 @@ def get_recent_logs(limit: int = 20) -> list[dict]:
         except Exception:
             continue
     return logs
+
+def get_total_logs_count() -> int:
+    """Return the total number of logs stored."""
+    if not os.path.exists(LOG_DIR):
+        return 0
+    return len(os.listdir(LOG_DIR))

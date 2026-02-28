@@ -2,6 +2,7 @@ import { useAccount, useConnect, useDisconnect, useBalance } from 'wagmi';
 import { useContractStats } from '../hooks/useContractStats';
 import { useNetworkStats } from '../hooks/useNetworkStats';
 import { truncateAddress } from '../utils/formatters';
+import { useAutoTrade } from '../contexts/AutoTradeContext';
 
 export default function Header() {
     const { address, isConnected } = useAccount();
@@ -10,6 +11,7 @@ export default function Header() {
     const { data: wb } = useBalance({ address });
     const { paused } = useContractStats();
     const { blockNumber } = useNetworkStats();
+    const { autoTrade, setAutoTrade } = useAutoTrade();
 
     return (
         <header style={{
@@ -31,14 +33,11 @@ export default function Header() {
                         boxShadow: '0 0 20px rgba(240, 185, 11, 0.1)',
                         position: 'relative'
                     }}>
-                        <svg width="28" height="28" viewBox="0 0 64 64" fill="none" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 4px rgba(240,185,11,0.6))' }}>
-                            <polygon points="32,4 60,20 60,44 32,60 4,44 4,20" fill="none" />
-                            <circle cx="32" cy="4" r="3" fill="var(--accent)" />
-                            <circle cx="60" cy="20" r="3" fill="var(--accent)" />
-                            <circle cx="60" cy="44" r="3" fill="var(--accent)" />
-                            <circle cx="32" cy="60" r="3" fill="var(--accent)" />
-                            <circle cx="4" cy="44" r="3" fill="var(--accent)" />
-                            <circle cx="4" cy="20" r="3" fill="var(--accent)" />
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" style={{ filter: 'drop-shadow(0 0 6px rgba(240,185,11,0.6))' }}>
+                            <polygon points="12 2 22 7.5 22 16.5 12 22 2 16.5 2 7.5 12 2" fill="rgba(240, 185, 11, 0.08)" />
+                            <polyline points="2 7.5 12 13 22 7.5" />
+                            <polyline points="12 22 12 13" />
+                            <polygon points="12 2 7 7.5 12 13 17 7.5 12 2" fill="rgba(240, 185, 11, 0.15)" />
                         </svg>
                         <div style={{
                             position: 'absolute', bottom: -1, right: -1,
@@ -60,10 +59,15 @@ export default function Header() {
 
                 {/* WALLET & STATUS */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 16 }}>
-                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)', animation: 'pulse-dot 2s ease-in-out infinite' }} />
-                        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)' }}>Scanning Markets</span>
-                    </div>
+                    <button
+                        onClick={() => setAutoTrade(!autoTrade)}
+                        className="glass"
+                        style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 8, padding: '8px 16px', borderRadius: 100, cursor: 'pointer', background: autoTrade ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)', borderColor: autoTrade ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)', boxShadow: autoTrade ? '0 0 12px rgba(16, 185, 129, 0.1)' : 'none' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: autoTrade ? 'var(--green)' : 'var(--red)', animation: autoTrade ? 'pulse-dot 2s ease-in-out infinite' : 'none', boxShadow: autoTrade ? '0 0 8px var(--green)' : 'none' }} />
+                        <span style={{ fontSize: 12, fontWeight: 600, color: autoTrade ? 'var(--green)' : 'var(--red)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                            Auto-Trade: {autoTrade ? 'ON' : 'OFF'}
+                        </span>
+                    </button>
 
                     {isConnected ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

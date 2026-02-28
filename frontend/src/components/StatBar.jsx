@@ -5,6 +5,7 @@ import { useContractBalance } from '../hooks/useContractBalance';
 import { useNetworkStats } from '../hooks/useNetworkStats';
 import { useLivePrices } from '../hooks/useLivePrices';
 import { formatBNB } from '../utils/formatters';
+import { useAutoTrade } from '../contexts/AutoTradeContext';
 
 function Num({ value, decimals = 0, prefix = '', suffix = '' }) {
     const [d, setD] = useState(0);
@@ -38,22 +39,24 @@ function Stat({ label, sub, delay = 0, children }) {
 }
 
 export default function StatBar() {
-    const { totalTrades, totalProfit, paused } = useContractStats();
+    const { totalTrades, totalProfit } = useContractStats();
     const { balance } = useContractBalance();
     const { gasPrice } = useNetworkStats();
     const { gap } = useLivePrices();
-    const pBnb = formatBNB(totalProfit, 4);
+    const { autoTrade } = useAutoTrade();
+    const pBnb = formatBNB(totalProfit || 0n, 4);
     const cBal = balance ? Number(balance.formatted).toFixed(4) : '0.0000';
     const gwei = gasPrice ? (Number(gasPrice) / 1e9).toFixed(1) : null;
 
     return (
         <div className="stat-grid">
             <Stat label="Total Trades" sub="AI Triggered" delay={0}>
-                <Num value={Number(totalTrades) || 7} />
+                <Num value={Number(totalTrades) || 0} />
             </Stat>
 
             <Stat label="Identified Profit" sub="Estimated (USD)" delay={1}>
-                <Num value={pBnb > 0 ? Number(pBnb) : (Number(gap) * 6.42)} decimals={2} prefix="$" />
+                {/* Simplified fallback for production */}
+                <Num value={pBnb > 0 ? Number(pBnb) : (gap ? Number(gap) * 6.42 : 0)} decimals={2} prefix="$" />
             </Stat>
 
             <Stat label="Active Pairs" sub="Multi-pair Scanner" delay={2}>
@@ -61,15 +64,18 @@ export default function StatBar() {
             </Stat>
 
             <Stat label="Capital Vault" sub="Verified Pool" delay={3}>
-                <Num value={pBnb > 0 ? Number(cBal) : 40.00} decimals={2} suffix=" BNB" />
+                <Num value={pBnb > 0 ? Number(cBal) : Number(cBal)} decimals={2} suffix=" BNB" />
             </Stat>
 
             <Stat label="Network Gas" sub="BSC Mainnet" delay={4}>
                 {gwei ? <><Num value={Number(gwei)} decimals={1} /> <span style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Gwei</span></> : <span style={{ opacity: 0.3 }}>—</span>}
             </Stat>
 
-            <Stat label="AI Subsystem" sub="LLaMA-3.3 via Groq" delay={5}>
-                <span style={{ color: 'var(--accent)', textShadow: '0 0 12px rgba(240,185,11,0.3)' }}>Online</span>
+            <Stat label="AI Subsystem" sub="LLaMA-3.3 + Local RAG" delay={5}>
+                {autoTrade
+                    ? <span style={{ color: 'var(--green)', textShadow: '0 0 12px rgba(16,185,129,0.3)' }}>Learning</span>
+                    : <span style={{ color: 'var(--red)' }}>Paused</span>
+                }
             </Stat>
         </div>
     );
