@@ -75,14 +75,14 @@ body {
    ══════════════════════════════════════════════════════════ */
 .app-container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 32px 40px;
 }
 
 .header-container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 0 40px;
   display: flex;
@@ -99,13 +99,13 @@ body {
 .main-grid {
   display: grid;
   grid-template-columns: 10fr 9fr;
-  gap: 24px;
+  gap: 12px;
 }
 
 .log-grid {
   display: grid;
   grid-template-columns: 5fr 4fr;
-  gap: 24px;
+  gap: 12px;
 }
 
 .soon-grid {
