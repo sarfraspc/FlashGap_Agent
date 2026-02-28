@@ -5,6 +5,7 @@ import { useContractBalance } from '../hooks/useContractBalance';
 import { useNetworkStats } from '../hooks/useNetworkStats';
 import { useLivePrices } from '../hooks/useLivePrices';
 import { formatBNB } from '../utils/formatters';
+import { useAutoTrade } from '../contexts/AutoTradeContext';
 
 function Num({ value, decimals = 0, prefix = '', suffix = '' }) {
     const [d, setD] = useState(0);
@@ -42,6 +43,7 @@ export default function StatBar() {
     const { balance } = useContractBalance();
     const { gasPrice } = useNetworkStats();
     const { gap } = useLivePrices();
+    const { autoTrade } = useAutoTrade();
     const pBnb = formatBNB(totalProfit || 0n, 4);
     const cBal = balance ? Number(balance.formatted).toFixed(4) : '0.0000';
     const gwei = gasPrice ? (Number(gasPrice) / 1e9).toFixed(1) : null;
@@ -70,7 +72,10 @@ export default function StatBar() {
             </Stat>
 
             <Stat label="AI Subsystem" sub="LLaMA-3.3 + Local RAG" delay={5}>
-                <span style={{ color: 'var(--green)', textShadow: '0 0 12px rgba(16,185,129,0.3)' }}>Learning</span>
+                {autoTrade
+                    ? <span style={{ color: 'var(--green)', textShadow: '0 0 12px rgba(16,185,129,0.3)' }}>Learning</span>
+                    : <span style={{ color: 'var(--red)' }}>Paused</span>
+                }
             </Stat>
         </div>
     );

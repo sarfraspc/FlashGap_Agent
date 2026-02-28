@@ -375,6 +375,24 @@ def main():
             if len(price_history) > 100:
                 price_history = price_history[-50:]
 
+            # Write latest scan data to frontend on every tick
+            ui_state_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "public", "ai_state.json")
+            try:
+                current_state = {}
+                if os.path.exists(ui_state_path):
+                    with open(ui_state_path) as f:
+                        current_state = json.load(f)
+                current_state["best_pair"] = best["label"]
+                current_state["best_gap"] = round(best["gap_pct"], 4)
+                current_state["profitable"] = best["profitable"]
+                current_state["pairs_scanned"] = len(scan)
+                current_state["scan_time"] = now_iso
+                current_state["rag_count"] = get_total_logs_count()
+                with open(ui_state_path, "w") as f:
+                    json.dump(current_state, f)
+            except Exception:
+                pass
+
             # ── AI evaluation (every 5th tick) ────────────
             if tick_count % ai_call_interval == 0 and len(price_history) >= 3:
                 recent_logs = get_recent_logs(20)

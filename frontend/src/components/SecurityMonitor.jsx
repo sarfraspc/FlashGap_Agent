@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useContractStats } from '../hooks/useContractStats';
 import { useTradeHistory } from '../hooks/useTradeHistory';
 import { truncateAddress } from '../utils/formatters';
+import { useAutoTrade } from '../contexts/AutoTradeContext';
 
 export default function SecurityMonitor() {
     const { paused, owner, minProfitBps, maxSlippageBps } = useContractStats();
     const { trades } = useTradeHistory();
     const [showProof, setShowProof] = useState(false);
+    const { autoTrade } = useAutoTrade();
 
     const latestTrade = trades?.[0];
     const proofDetails = latestTrade ? {
@@ -22,6 +24,7 @@ export default function SecurityMonitor() {
 
     const stats = [
         { label: 'Protocol Status', value: paused ? 'PAUSED' : 'ACTIVE', color: paused ? 'var(--red)' : 'var(--green)' },
+        { label: 'Auto-Trade', value: autoTrade ? 'ENABLED' : 'DISABLED', color: autoTrade ? 'var(--green)' : 'var(--red)' },
         { label: 'Greenfield Audit', value: 'ENABLED', color: 'var(--cyan)' },
         { label: 'Profit Threshold', value: `${(Number(minProfitBps) / 100).toFixed(2)}%`, color: 'var(--accent)' },
         { label: 'Max DEX Slippage', value: `${(Number(maxSlippageBps) / 100).toFixed(2)}%`, color: 'var(--text-primary)' },

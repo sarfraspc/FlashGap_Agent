@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useLivePrices } from '../hooks/useLivePrices';
 import { useContractStats } from '../hooks/useContractStats';
+import { useAutoTrade } from '../contexts/AutoTradeContext';
 
 function MinimalGauge({ value = 0, color = 'var(--text-primary)' }) {
     const r = 40, c = 2 * Math.PI * r;
@@ -33,6 +34,7 @@ export default function AIConfidenceCard() {
     const [aiStatus, setAiStatus] = useState('Analyzing Spreads');
     const [aiRisk, setAiRisk] = useState('High Risk');
     const [ragIngested, setRagIngested] = useState(0);
+    const { autoTrade } = useAutoTrade();
 
     useEffect(() => {
         let isMounted = true;
@@ -106,8 +108,9 @@ export default function AIConfidenceCard() {
                 <p className="section-subtitle">LLaMA-3.3-70B Evaluation Layer</p>
             </div>
 
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <MinimalGauge value={confPct} color={color} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', opacity: autoTrade ? 1 : 0.35, transition: 'opacity 0.5s' }}>
+                {!autoTrade && <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--red)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Agent Paused</p>}
+                <MinimalGauge value={autoTrade ? confPct : 0} color={autoTrade ? color : 'var(--text-secondary)'} />
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '100%', marginTop: 32 }}>
                     <div style={{ background: 'var(--bg-card)', padding: '14px 10px', borderRadius: '12px', textAlign: 'center', border: '1px solid var(--border-glass)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }}>
