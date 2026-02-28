@@ -63,5 +63,5 @@ export function useTradeHistory() {
         return () => clearInterval(interval);
     }, [publicClient]);
 
-    return { trades, isLoading, error };
+    return { trades, isLoading, error, isDemo: trades === DEMO_TRADES };
 }

@@ -49,9 +49,12 @@ export default function SecurityMonitor() {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -8 }}
-                        style={{ background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)', marginBottom: 16 }}>
-                        <p style={{ fontSize: 9, color: 'var(--cyan)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>Recent Audit Proof — ID: FG-928...AF01</p>
-                        <pre className="font-mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
+                        style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 12, border: '1px solid var(--border-glass)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)', marginBottom: 16 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', boxShadow: '0 0 8px var(--green)', animation: 'pulse-dot 2s ease-in-out infinite' }} />
+                            <p style={{ fontSize: 10, color: 'var(--green)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Greenfield Execution Proof</p>
+                        </div>
+                        <pre className="font-mono" style={{ fontSize: 11, color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', lineHeight: '1.5', background: 'rgba(0,0,0,0.5)', padding: 12, borderRadius: 8, border: '1px solid rgba(16,185,129,0.15)' }}>
                             {JSON.stringify(proofDetails, null, 2)}
                         </pre>
                     </motion.div>

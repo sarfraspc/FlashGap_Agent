@@ -15,7 +15,6 @@ export default function PriceGapCard() {
                     <h2 className="section-title">Price Divergence</h2>
                     <p className="section-subtitle">Multi-pair arbitrage monitoring</p>
                 </div>
-                {isOpp && <span className="tag tag-live">OPPORTUNITY</span>}
             </div>
 
             {/* ── Minimalist Gap Hero ─────────────────────────── */}
@@ -34,7 +33,7 @@ export default function PriceGapCard() {
 
             {/* ── Subdued History Chart ───────────────────────── */}
             {history.length > 0 && (
-                <div style={{ height: 60, display: 'flex', alignItems: 'flex-end', gap: '3px', width: '100%', paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ height: 60, display: 'flex', alignItems: 'flex-end', gap: '4px', width: '100%', paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     {history.map((h, i) => {
                         const isHigh = h.gap > 0.1;
                         return (
@@ -42,11 +41,10 @@ export default function PriceGapCard() {
                                 initial={{ height: 0 }}
                                 animate={{ height: `${Math.max((h.gap / maxGap) * 100, 4)}%` }}
                                 style={{
-                                    flex: 1, minWidth: 6, borderRadius: '4px 4px 0 0',
+                                    flex: 1, minWidth: 4, borderRadius: '4px 4px 0 0',
                                     background: isHigh ? 'var(--accent)' : 'var(--text-secondary)',
-                                    opacity: isHigh ? 1 : 0.2 + (i / history.length) * 0.6,
-                                    borderTop: isHigh ? '1px solid rgba(255,255,255,0.5)' : 'none',
-                                    boxShadow: isHigh ? '0 0 12px var(--accent)' : 'none'
+                                    opacity: isHigh ? 0.6 + (i / history.length) * 0.4 : 0.2 + (i / history.length) * 0.4,
+                                    borderTop: isHigh ? '1px solid rgba(255,255,255,0.8)' : 'none',
                                 }} />
                         );
                     })}

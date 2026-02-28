@@ -69,8 +69,8 @@ export default function StatBar() {
                 {gwei ? <><Num value={Number(gwei)} decimals={1} /> <span style={{ fontSize: 14, color: 'var(--text-tertiary)' }}>Gwei</span></> : <span style={{ opacity: 0.3 }}>—</span>}
             </Stat>
 
-            <Stat label="AI Subsystem" sub="LLaMA-3.3 via Groq" delay={5}>
-                <span style={{ color: 'var(--accent)', textShadow: '0 0 12px rgba(240,185,11,0.3)' }}>Online</span>
+            <Stat label="AI Subsystem" sub="LLaMA-3.3 + Local RAG" delay={5}>
+                <span style={{ color: 'var(--green)', textShadow: '0 0 12px rgba(16,185,129,0.3)' }}>Learning</span>
             </Stat>
         </div>
     );

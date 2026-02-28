@@ -11,6 +11,7 @@ FlashGap AI — Full Agent (Steps 3-6) + Multi-Pair Scanner
 import time
 import json
 import datetime
+import os
 from web3 import Web3
 
 from config import (
@@ -23,7 +24,7 @@ from config import (
     OPENAI_API_KEY, AI_BASE_URL, AI_MODEL, CONFIDENCE_THRESHOLD,
     FLASHGAP_CONTRACT, DEPLOYER_PRIVATE_KEY,
 )
-from greenfield import upload_log
+from greenfield import upload_log, get_recent_logs, get_total_logs_count
 
 # ── Web3 connections ──────────────────────────────────────
 w3_mainnet = Web3(Web3.HTTPProvider(BSC_RPC))
@@ -129,7 +130,7 @@ def scan_all_pairs(pancake, biswap):
     return results
 
 
-def ask_ai(scan_results, price_history):
+def ask_ai(scan_results, price_history, recent_logs=None):
     if not ai_enabled:
         if not scan_results:
             return 0.0, "No data", None
@@ -148,6 +149,22 @@ def ask_ai(scan_results, price_history):
         history_str = f"\n\nRecent history of best pair ({price_history[-1].get('best_pair', 'N/A')}):\n"
         history_str += json.dumps(price_history[-10:], indent=2)
 
+    learning_context = ""
+    if recent_logs and scan_results:
+        pair_to_analyze = scan_results[0]["label"]
+        fails = 0
+        successes = 0
+        for log in recent_logs:
+            if log.get("ai", {}).get("best_pair") == pair_to_analyze:
+                arb_tx = log.get("transactions", {}).get("arb_tx", {}) or {}
+                status = arb_tx.get("status", "")
+                if "Rever" in status or "fail" in status.lower() or "error" in arb_tx:
+                    fails += 1
+                elif "Success" in status:
+                    successes += 1
+        if fails > 0 or successes > 0:
+            learning_context = f"\n\nGREENFIELD HISTORICAL LOGS (Self-Learning Context):\nWe have traded {pair_to_analyze} recently. Results: {successes} successes, {fails} failures/reverts.\nIf you see mostly failures, reduce your confidence or recommend 'skip'. If successful, you can be more confident."
+
     prompt = f"""You are an AI arbitrage evaluator for a DeFi flash-swap bot on BNB Chain.
 
 CURRENT SCAN — 6 pairs across PancakeSwap vs BiSwap:
@@ -155,6 +172,7 @@ CURRENT SCAN — 6 pairs across PancakeSwap vs BiSwap:
 
 Flash swap fee: 0.25% (gap must exceed this for profit)
 {history_str}
+{learning_context}
 
 Evaluate:
 1. Which pair has the best opportunity RIGHT NOW?
@@ -359,7 +377,8 @@ def main():
 
             # ── AI evaluation (every 5th tick) ────────────
             if tick_count % ai_call_interval == 0 and len(price_history) >= 3:
-                confidence, reasoning, ai_pick = ask_ai(scan, price_history)
+                recent_logs = get_recent_logs(20)
+                confidence, reasoning, ai_pick = ask_ai(scan, price_history, recent_logs)
 
                 # Print scan summary
                 print(f"  {now}  ── Scan ({len(scan)} pairs) ──")
@@ -367,6 +386,20 @@ def main():
                     flag = " 🔥" if r["profitable"] else ""
                     print(f"         {r['label']:<12} Gap={r['gap_pct']:.4f}%{flag}")
                 print(f"         🤖 AI: {confidence*100:.1f}% — {reasoning}")
+
+                # Update frontend proxy with live AI data
+                ui_state_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "public", "ai_state.json")
+                try:
+                    with open(ui_state_path, "w") as f:
+                        json.dump({
+                            "confidence": confidence,
+                            "reasoning": reasoning,
+                            "ai_pick": ai_pick,
+                            "timestamp": now_iso,
+                            "rag_count": get_total_logs_count()
+                        }, f)
+                except Exception as e:
+                    pass
 
                 if confidence >= CONFIDENCE_THRESHOLD:
                     print(f"         🔥 EXECUTING on {ai_pick or best['label']}")

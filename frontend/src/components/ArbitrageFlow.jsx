@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useLivePrices } from '../hooks/useLivePrices';
-// formatPrice unused
 
 export default function ArbitrageFlow() {
     const { gap } = useLivePrices();
