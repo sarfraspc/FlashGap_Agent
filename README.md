@@ -20,6 +20,23 @@ FlashGap AI is a high-speed quantitative arbitrage bot designed to scan multiple
 - **Real-Time Visualization:** A dynamic React dashboard that consumes state directly from the Python agent, displaying execution logs, profit metrics, and the AI's real-time reasoning.
 - **Persistent State & Logging:** Structured JSON logs capture every AI decision matrix and on-chain transaction receipt for continuous learning and auditing.
 
+## Deployment & On-Chain Proof
+
+**Network:** BSC Testnet
+**Contract Address:**
+[0xa6acB349c32B59c20c898a025971f9e3080B6bf0](https://testnet.bscscan.com/address/0xa6acB349c32B59c20c898a025971f9e3080B6bf0)
+
+**Verified Source Code:**
+The complete, verified source code is available in this repository under the `/contracts` directory.
+
+**Successful Hackathon Transactions (Executed Feb 27–28, 2026):**
+
+- **Tx Hash (Admin Configuration):**
+  [0x497ce1d469135f59e56d43f9751cf9ecf671756c515352f510dbc3e6091a5a34](https://testnet.bscscan.com/tx/0x497ce1d469135f59e56d43f9751cf9ecf671756c515352f510dbc3e6091a5a34)
+
+- **Tx Hash (AI-Triggered Arbitrage Execution):**
+  [0x08e245c90b3e062b1b9e86345129978fc0c2daa2aef04688b70f4cfd8961d61a](https://testnet.bscscan.com/tx/0x08e245c90b3e062b1b9e86345129978fc0c2daa2aef04688b70f4cfd8961d61a)
+
 ## Prerequisites
 
 - **Node.js:** v18 or newer
