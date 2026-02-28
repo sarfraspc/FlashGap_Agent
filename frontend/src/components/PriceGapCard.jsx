@@ -27,24 +27,29 @@ export default function PriceGapCard() {
             </div>
 
             {/* ── Elegant Price Readings ──────────────────────── */}
-            <div className="price-2col" style={{ marginBottom: 24, background: 'rgba(255,255,255,0.02)', padding: '12px 16px', borderRadius: '12px', boxShadow: 'inset 0 2px 12px rgba(0,0,0,0.2)' }}>
+            <div className="price-2col" style={{ marginBottom: 28, background: 'var(--bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--border-glass)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 12px rgba(0,0,0,0.15)' }}>
                 <PriceItem label="PancakeSwap" price={pcsPrice} error={pcsError} />
                 <PriceItem label="BiSwap" price={biswapPrice} error={biswapError} />
             </div>
 
             {/* ── Subdued History Chart ───────────────────────── */}
             {history.length > 0 && (
-                <div style={{ height: 60, display: 'flex', alignItems: 'flex-end', gap: 6, width: '100%' }}>
-                    {history.map((h, i) => (
-                        <div key={i} style={{
-                            flex: 1, minWidth: 4, borderRadius: 100,
-                            height: `${Math.max((h.gap / maxGap) * 100, 4)}%`,
-                            background: h.gap > 0.1 ? 'var(--accent)' : 'var(--text-secondary)',
-                            opacity: 0.2 + (i / history.length) * 0.8,
-                            transition: 'height 0.3s ease-in-out',
-                            boxShadow: h.gap > 0.1 ? '0 0 8px var(--accent)' : 'none'
-                        }} />
-                    ))}
+                <div style={{ height: 60, display: 'flex', alignItems: 'flex-end', gap: '3px', width: '100%', paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                    {history.map((h, i) => {
+                        const isHigh = h.gap > 0.1;
+                        return (
+                            <motion.div key={i}
+                                initial={{ height: 0 }}
+                                animate={{ height: `${Math.max((h.gap / maxGap) * 100, 4)}%` }}
+                                style={{
+                                    flex: 1, minWidth: 6, borderRadius: '4px 4px 0 0',
+                                    background: isHigh ? 'var(--accent)' : 'var(--text-secondary)',
+                                    opacity: isHigh ? 1 : 0.2 + (i / history.length) * 0.6,
+                                    borderTop: isHigh ? '1px solid rgba(255,255,255,0.5)' : 'none',
+                                    boxShadow: isHigh ? '0 0 12px var(--accent)' : 'none'
+                                }} />
+                        );
+                    })}
                 </div>
             )}
         </motion.div>
@@ -53,10 +58,10 @@ export default function PriceGapCard() {
 
 function PriceItem({ label, price, error }) {
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)' }}>{label}</p>
-            <p className="font-mono" style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-primary)', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
-                {error ? <span style={{ color: 'var(--red)' }}>Err</span> : price !== null ? formatPrice(price, 8) : <span style={{ opacity: 0.3 }}>Wait</span>}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
+            <p className="font-mono" style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', textShadow: '0 2px 4px rgba(0,0,0,0.5)' }}>
+                {error ? <span style={{ color: 'var(--red)' }}>Fault</span> : price !== null ? formatPrice(price, 8) : <span style={{ opacity: 0.3, fontSize: 14 }}>Syncing...</span>}
             </p>
         </div>
     );

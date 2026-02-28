@@ -4,6 +4,7 @@ import AIConfidenceCard from './AIConfidenceCard';
 import ArbitrageFlow from './ArbitrageFlow';
 import ExecutionLog from './ExecutionLog';
 import SecurityMonitor from './SecurityMonitor';
+import ComingSoonSection from './ComingSoonSection';
 
 export default function Dashboard() {
     return (
@@ -24,6 +25,11 @@ export default function Dashboard() {
             <div className="log-grid">
                 <ExecutionLog />
                 <SecurityMonitor />
+            </div>
+
+            {/* Row 5: Vision Roadmap */}
+            <div style={{ marginTop: '32px' }}>
+                <ComingSoonSection />
             </div>
         </div>
     );
