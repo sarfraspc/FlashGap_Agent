@@ -7,10 +7,10 @@ function App() {
     return (
         <AutoTradeProvider>
             <div className="relative min-h-screen" style={{ background: 'var(--bg-deep)' }}>
-                {/* ── Animated Background ─────────────────────── */}
+                {/* Animated Background */}
                 <div className="animated-bg" />
 
-                {/* ── Content (above background) ──────────────── */}
+                {/* Content (above background) */}
                 <div className="relative z-10">
                     <Header />
 

@@ -20,7 +20,7 @@ import "./interfaces/IUniswapV2Callee.sol";
  */
 contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
 
-    // ─────────────────── Struct (avoids stack-too-deep) ──────
+    // Struct (avoids stack-too-deep)
     struct ArbParams {
         address tokenBorrow;
         address tokenTarget;
@@ -30,7 +30,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
         uint256 minAmountOut;
     }
 
-    // ─────────────────── State ───────────────────────────────
+    // State
     address public factoryA;
     uint256 public minProfitBps;
     uint256 public maxSlippageBps;
@@ -40,7 +40,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
     uint256 public totalTrades;
     uint256 public totalProfit;
 
-    // ─────────────────── Events ──────────────────────────────
+    // Events
     event ArbitrageExecuted(
         address indexed tokenBorrow,
         address indexed tokenTarget,
@@ -57,7 +57,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
     event EmergencyWithdraw(address indexed token, uint256 amount, address indexed to);
     event EmergencyWithdrawBNB(uint256 amount, address indexed to);
 
-    // ─────────────────── Errors ──────────────────────────────
+    // Errors
     error ZeroAmount();
     error PairNotFound(address tokenA, address tokenB);
     error UnauthorizedCallback(address caller, address expectedPair);
@@ -68,7 +68,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
     error ZeroAddress();
     error TransferFailed();
 
-    // ─────────────────── Constructor ─────────────────────────
+    // Constructor
     constructor(
         address _factoryA,
         uint256 _minProfitBps
@@ -80,9 +80,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
         flashFeeNumerator = 25;    // 0.25 %
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //                   EXTERNAL — ARBITRAGE
-    // ═══════════════════════════════════════════════════════════
+    // EXTERNAL ARBITRAGE
 
     function requestArbitrage(
         address tokenBorrow,
@@ -108,9 +106,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
         IUniswapV2Pair(pair).swap(amount0Out, amount1Out, address(this), data);
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //                CALLBACK — pancakeCall
-    // ═══════════════════════════════════════════════════════════
+    // CALLBACK pancakeCall
 
     function pancakeCall(
         address _sender,
@@ -123,9 +119,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
         _validateAndSettle(p, finalAmount);
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //              INTERNAL — SPLIT TO AVOID STACK DEPTH
-    // ═══════════════════════════════════════════════════════════
+    // INTERNAL SPLIT TO AVOID STACK DEPTH
 
     function _decodeAndValidate(
         address _sender,
@@ -211,9 +205,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
         );
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //                   ADMIN / CONFIG
-    // ═══════════════════════════════════════════════════════════
+    // ADMIN / CONFIG
 
     function setMinProfitBps(uint256 _bps) external onlyOwner {
         emit MinProfitUpdated(minProfitBps, _bps);
@@ -258,9 +250,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
         emit EmergencyWithdrawBNB(bal, owner());
     }
 
-    // ═══════════════════════════════════════════════════════════
-    //                   VIEW HELPERS
-    // ═══════════════════════════════════════════════════════════
+    // VIEW HELPERS
 
     function estimateProfit(
         address tokenBorrow,
@@ -297,7 +287,7 @@ contract FlashGap is IUniswapV2Callee, Ownable, ReentrancyGuard, Pausable {
     receive() external payable {}
 }
 
-// ── Minimal ERC-20 interface ──────────────────────────────
+// Minimal ERC-20 interface
 interface IERC20 {
     function approve(address spender, uint256 amount) external returns (bool);
     function transfer(address to, uint256 amount) external returns (bool);

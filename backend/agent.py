@@ -4,7 +4,7 @@ FlashGap AI — Full Agent (Steps 3-6) + Multi-Pair Scanner
 1. Scans 6 pairs on BSC Mainnet (PancakeSwap + BiSwap)
 2. Finds the pair with the BIGGEST price gap
 3. AI (Groq/LLaMA) evaluates the best opportunity
-4. If confidence >= 80% → sends TX to FlashGap contract on Testnet
+4. If confidence >= 80% sends TX to FlashGap contract on Testnet
 5. Logs every decision to local JSON files
 """
 
@@ -26,11 +26,11 @@ from config import (
 )
 from greenfield import upload_log, get_recent_logs, get_total_logs_count
 
-# ── Web3 connections ──────────────────────────────────────
+# Web3 connections 
 w3_mainnet = Web3(Web3.HTTPProvider(BSC_RPC))
 w3_testnet = Web3(Web3.HTTPProvider(BSC_TESTNET_RPC))
 
-# ── AI setup ─────────────────────────────────────────────
+# AI setup 
 ai_enabled = False
 client = None
 
@@ -39,13 +39,13 @@ if OPENAI_API_KEY:
         from openai import OpenAI
         client = OpenAI(api_key=OPENAI_API_KEY, base_url=AI_BASE_URL)
         ai_enabled = True
-        print(f"  ✅ AI connected: {AI_BASE_URL} ({AI_MODEL})")
+        print(f"  AI connected: {AI_BASE_URL} ({AI_MODEL})")
     except ImportError:
-        print("  ⚠️  openai package not installed. Run: pip install openai")
+        print("  Warning: openai package not installed. Run: pip install openai")
 else:
-    print("  ⚠️  No API key set. AI gating disabled (mock mode).")
+    print("  Warning: No API key set. AI gating disabled (mock mode).")
 
-# ── Contract setup ───────────────────────────────────────
+# Contract setup 
 contract = None
 account = None
 can_execute = False
@@ -58,19 +58,19 @@ if FLASHGAP_CONTRACT and DEPLOYER_PRIVATE_KEY:
         )
         account = w3_testnet.eth.account.from_key(DEPLOYER_PRIVATE_KEY)
         can_execute = True
-        print(f"  ✅ Contract: {FLASHGAP_CONTRACT[:10]}...{FLASHGAP_CONTRACT[-6:]}")
-        print(f"  ✅ Executor: {account.address[:10]}...{account.address[-6:]}")
+        print(f"  Contract: {FLASHGAP_CONTRACT[:10]}...{FLASHGAP_CONTRACT[-6:]}")
+        print(f"  Executor: {account.address[:10]}...{account.address[-6:]}")
     except Exception as e:
-        print(f"  ⚠️  Contract setup failed: {e}")
+        print(f"  Warning: Contract setup failed: {e}")
 else:
-    print("  ⚠️  No contract/key — execution disabled.")
+    print("  Warning: No contract/key — execution disabled.")
 
 
 def check_connection():
     m_ok = w3_mainnet.is_connected()
     t_ok = w3_testnet.is_connected()
-    print(f"  Mainnet  : {'✅ Connected' if m_ok else '❌ Failed'} (block {w3_mainnet.eth.block_number if m_ok else 'N/A'})")
-    print(f"  Testnet  : {'✅ Connected' if t_ok else '❌ Failed'} (block {w3_testnet.eth.block_number if t_ok else 'N/A'})")
+    print(f"  Mainnet  : {'Connected' if m_ok else 'Failed'} (block {w3_mainnet.eth.block_number if m_ok else 'N/A'})")
+    print(f"  Testnet  : {'Connected' if t_ok else 'Failed'} (block {w3_testnet.eth.block_number if t_ok else 'N/A'})")
     return m_ok
 
 
@@ -301,12 +301,12 @@ def main():
     print("=" * 64)
     print(f"  Scanning : {len(SCAN_PAIRS)} pairs across PancakeSwap × BiSwap")
     print(f"  AI       : {AI_MODEL} ({'enabled' if ai_enabled else 'mock'})")
-    print(f"  Contract : {'✅' if can_execute else '❌'}")
+    print(f"  Contract : {'OK' if can_execute else 'NONE'}")
     print(f"  Threshold: {CONFIDENCE_THRESHOLD * 100}%")
     print()
 
     if not check_connection():
-        print("\n❌ Cannot connect to BSC Mainnet.")
+        print("\nError: Cannot connect to BSC Mainnet.")
         return
 
     print()
@@ -314,47 +314,58 @@ def main():
     pancake = get_router(PANCAKE_ROUTER)
     biswap = get_router(BISWAP_ROUTER)
 
-    # ── Initial scan ──────────────────────────────────────
-    print("── Initial Pair Scan ──")
+    # Initial scan 
+    print("Initial Pair Scan")
     initial = scan_all_pairs(pancake, biswap)
     for r in initial:
-        flag = " 🔥" if r["profitable"] else ""
+        flag = " *" if r["profitable"] else ""
         print(f"  {r['label']:<12} PCS={r['pcs_price']:.8f}  BI={r['bi_price']:.8f}  Gap={r['gap_pct']:.4f}%{flag}")
 
     if initial:
         best = initial[0]
-        print(f"\n  🏆 Best gap: {best['label']} ({best['gap_pct']:.4f}%) — {best['direction']}")
+        print(f"\n  Best gap: {best['label']} ({best['gap_pct']:.4f}%) — {best['direction']}")
 
-    # ── Contract state ────────────────────────────────────
+    # Contract state 
     if can_execute:
         try:
             trades = contract.functions.totalTrades().call()
             profit = contract.functions.totalProfit().call()
-            print("\n── Contract State ──")
+            print("\nContract State")
             print(f"  totalTrades: {trades}  |  totalProfit: {profit}")
         except Exception as e:
-            print(f"  ⚠️  Cannot read contract: {e}")
+            print(f"  Warning: Cannot read contract: {e}")
 
     print()
     print("=" * 64)
-    print("  🔄 Live Multi-Pair Scanner + AI (Ctrl+C to stop)")
+    print("  Live Multi-Pair Scanner + AI")
     print("=" * 64)
     print()
 
     price_history = []
     tick_count = 0
-    ai_call_interval = 5
+    ai_call_interval = 10
     executions = 0
+    cumulative_potential_usd = 0.0
+    current_state = {
+        "best_pair": "None",
+        "best_gap": 0.0,
+        "profitable": False,
+        "pairs_scanned": 0,
+        "confidence": 0.0,
+        "reasoning": "Standby",
+        "cumulative_potential_usd": 0.0,
+        "executions": 0
+    }
 
     while True:
         try:
             now = datetime.datetime.now().strftime("%H:%M:%S")
             now_iso = datetime.datetime.utcnow().isoformat() + "Z"
 
-            # ── Scan all pairs ────────────────────────────
+            # Scan all pairs 
             scan = scan_all_pairs(pancake, biswap)
             if not scan:
-                print(f"  {now}  ⚠️ All pairs failed")
+                print(f"  {now}  Warning: All pairs failed")
                 time.sleep(POLL_INTERVAL_SEC)
                 continue
 
@@ -375,56 +386,44 @@ def main():
             if len(price_history) > 100:
                 price_history = price_history[-50:]
 
-            # Write latest scan data to frontend on every tick
-            ui_state_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "public", "ai_state.json")
-            try:
-                current_state = {}
-                if os.path.exists(ui_state_path):
-                    with open(ui_state_path) as f:
-                        current_state = json.load(f)
-                current_state["best_pair"] = best["label"]
-                current_state["best_gap"] = round(best["gap_pct"], 4)
-                current_state["profitable"] = best["profitable"]
-                current_state["pairs_scanned"] = len(scan)
-                current_state["scan_time"] = now_iso
-                current_state["rag_count"] = get_total_logs_count()
-                with open(ui_state_path, "w") as f:
-                    json.dump(current_state, f)
-            except Exception:
-                pass
+            # Update scan data in persistent state
+            current_state["best_pair"] = best["label"]
+            current_state["best_gap"] = round(best["gap_pct"], 4)
+            current_state["profitable"] = best["profitable"]
+            current_state["pairs_scanned"] = len(scan)
+            current_state["scan_time"] = now_iso
+            current_state["rag_count"] = get_total_logs_count()
 
-            # ── AI evaluation (every 5th tick) ────────────
+            # AI evaluation (every 5th tick) 
             if tick_count % ai_call_interval == 0 and len(price_history) >= 3:
                 recent_logs = get_recent_logs(20)
                 confidence, reasoning, ai_pick = ask_ai(scan, price_history, recent_logs)
 
+                # Update AI data in persistent state
+                current_state["confidence"] = confidence
+                current_state["reasoning"] = reasoning
+                current_state["ai_pick"] = ai_pick
+                current_state["timestamp"] = now_iso
+
                 # Print scan summary
-                print(f"  {now}  ── Scan ({len(scan)} pairs) ──")
+                print(f"  {now}  Scan ({len(scan)} pairs)")
                 for r in scan[:4]:
                     flag = " 🔥" if r["profitable"] else ""
                     print(f"         {r['label']:<12} Gap={r['gap_pct']:.4f}%{flag}")
-                print(f"         🤖 AI: {confidence*100:.1f}% — {reasoning}")
-
-                # Update frontend proxy with live AI data
-                ui_state_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "public", "ai_state.json")
-                try:
-                    with open(ui_state_path, "w") as f:
-                        json.dump({
-                            "confidence": confidence,
-                            "reasoning": reasoning,
-                            "ai_pick": ai_pick,
-                            "timestamp": now_iso,
-                            "rag_count": get_total_logs_count()
-                        }, f)
-                except Exception as e:
-                    pass
+                print(f"         AI: {confidence*100:.1f}% — {reasoning}")
 
                 if confidence >= CONFIDENCE_THRESHOLD:
-                    print(f"         🔥 EXECUTING on {ai_pick or best['label']}")
+                    print(f"         EXECUTING on {ai_pick or best['label']}")
                     executions += 1
-
+                    
                     pick_label = ai_pick or best["label"]
                     pick_data = next((r for r in scan if r["label"] == pick_label), best)
+                    
+                    # Accumulate "catched" potential profit (using UI's 6.42 factor for parity)
+                    catched_usd = round(pick_data["gap_pct"] * 6.42, 2)
+                    cumulative_potential_usd += catched_usd
+                    current_state["cumulative_potential_usd"] = round(cumulative_potential_usd, 2)
+                    current_state["executions"] = executions
 
                     tx_results = execute_on_chain(
                         confidence, pick_label, pick_data["gap_pct"], pick_data["direction"]
@@ -434,6 +433,7 @@ def main():
                         "timestamp": now_iso,
                         "tick": tick_count,
                         "execution_number": executions,
+                        "potential_catched": catched_usd,
                         "scan": [{
                             "pair": r["label"],
                             "pcs": r["pcs_price"],
@@ -452,7 +452,7 @@ def main():
                         "contract": FLASHGAP_CONTRACT,
                     }
                     log_path = upload_log(log_entry)
-                    print(f"         📄 Logged: {log_path}")
+                    print(f"         Logged: {log_path}")
                     print()
                 else:
                     print(f"         → ⏳ skip ({confidence*100:.0f}% < {CONFIDENCE_THRESHOLD*100}%)")
@@ -462,6 +462,15 @@ def main():
                 profitable_count = sum(1 for r in scan if r["profitable"])
                 print(f"  {now}  Best: {best['label']} Gap={best['gap_pct']:.4f}%  ({profitable_count}/{len(scan)} profitable)")
 
+            # Write latest state to frontend on EVERY tick
+            ui_state_path = os.path.join(os.path.dirname(__file__), "..", "frontend", "public", "ai_state.json")
+            try:
+                os.makedirs(os.path.dirname(ui_state_path), exist_ok=True)
+                with open(ui_state_path, "w") as f:
+                    json.dump(current_state, f)
+            except Exception as e:
+                print(f"   Warning: Frontend sync failed: {e}")
+
             time.sleep(POLL_INTERVAL_SEC)
 
         except KeyboardInterrupt:
@@ -470,7 +479,7 @@ def main():
             print(f"   {len(price_history)} scans collected.")
             break
         except Exception as e:
-            print(f"  ⚠️  Error: {e}")
+            print(f"  Error: {e}")
             time.sleep(POLL_INTERVAL_SEC)
             continue
 
