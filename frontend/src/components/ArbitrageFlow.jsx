@@ -1,19 +1,20 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useLivePrices } from '../hooks/useLivePrices';
-import { formatPrice } from '../utils/formatters';
+// formatPrice unused
 
 export default function ArbitrageFlow() {
-    const { pcsPrice, biswapPrice, gap } = useLivePrices();
-    const est = pcsPrice && biswapPrice && gap ? (gap * 0.01 * 600).toFixed(2) : null;
+    const { gap } = useLivePrices();
+    // Use actual gap size or default text rather than arbitrary formula
+    const gapPct = gap !== null ? gap.toFixed(2) : null;
     const hot = gap !== null && gap > 0.1;
 
     const steps = [
         { name: 'Flash Borrow', sub: 'WBNB Loan', isExchange: false },
-        { name: 'PancakeSwap', sub: 'Receive XVS', isExchange: true },
+        { name: 'PancakeSwap', sub: 'Routing', isExchange: true },
         { name: 'Liquidity Swap', sub: 'Asset Routed', isExchange: false },
         { name: 'BiSwap', sub: 'Execute Sell', isExchange: true },
-        { name: 'Repay & Profit', sub: est && est > 0 ? `+$${est} Net` : 'Arbitrage', isExchange: false, highlight: hot },
+        { name: 'Repay & Profit', sub: gapPct ? `Expected ${gapPct}%` : 'Arbitrage', isExchange: false, highlight: hot },
     ];
 
     return (

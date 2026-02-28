@@ -1,0 +1,26 @@
+# ── Blockchain ──────────────────────────────────────────
+DEPLOYER_PRIVATE_KEY=0xcf55f82f04204f198a3a61d3721880f3622b556039587e18da9f85ae23bbc115
+BSC_TESTNET_RPC=https://data-seed-prebsc-1-s1.binance.org:8545
+BSC_MAINNET_RPC=https://bsc-dataseed1.binance.org
+BSCSCAN_API_KEY=
+
+# ── Smart-Contract Addresses (filled after deploy) ─────
+FLASHGAP_CONTRACT_ADDRESS=0xa6acB349c32B59c20c898a025971f9e3080B6bf0
+
+# ── DEX Routers (BSC Mainnet — used for price reads) ───
+PANCAKESWAP_ROUTER=0x10ED43C718714eb63d5aA57B78B54704E256024E
+BISWAP_ROUTER=0x3a6d8cA21D1CF76F653A67577FA0D27453350dD8
+# NOTE: Factory is auto-detected per network in deploy.js
+# Do NOT set PANCAKESWAP_FACTORY here
+
+# ── Token Addresses (BSC Mainnet) ──────────────────────
+WBNB=0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
+BUSD=0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56
+USDT=0x55d398326f99059fF775485246999027B3197955
+
+# ── AI / OpenAI ────────────────────────────────────────
+OPENAI_API_KEY=your_groq_api_key_here
+
+# ── IPFS / Greenfield ─────────────────────────────────
+GREENFIELD_RPC=https://greenfield-chain.bnbchain.org
+GREENFIELD_BUCKET=flashgap-logs

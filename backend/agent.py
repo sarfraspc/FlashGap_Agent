@@ -16,8 +16,8 @@ from web3 import Web3
 from config import (
     BSC_RPC, BSC_TESTNET_RPC,
     PANCAKE_ROUTER, BISWAP_ROUTER,
-    WBNB, BUSD,
     TESTNET_WBNB, TESTNET_BUSD, TESTNET_PANCAKE_ROUTER,
+    TESTNET_BISWAP_ROUTER,
     ROUTER_ABI, FLASHGAP_ABI, SCAN_PAIRS,
     POLL_INTERVAL_SEC, BORROW_AMOUNT_WEI,
     OPENAI_API_KEY, AI_BASE_URL, AI_MODEL, CONFIDENCE_THRESHOLD,
@@ -176,6 +176,11 @@ Respond in EXACTLY this JSON format:
             max_tokens=200,
         )
         raw = response.choices[0].message.content.strip()
+        if raw.startswith("```json"):
+            raw = raw.split("```json")[1].split("```")[0].strip()
+        elif raw.startswith("```"):
+            raw = raw.split("```")[1].split("```")[0].strip()
+
         result = json.loads(raw)
         return (
             float(result.get("confidence", 0)),
@@ -188,7 +193,7 @@ Respond in EXACTLY this JSON format:
         return 0.0, f"AI error: {str(e)[:80]}", None
 
 
-def execute_on_chain(confidence, best_pair, gap):
+def execute_on_chain(confidence, best_pair, gap, direction):
     results = {"admin_tx": None, "arb_tx": None, "error": None}
 
     if not can_execute:
@@ -199,11 +204,12 @@ def execute_on_chain(confidence, best_pair, gap):
         print("         📡 Sending admin TX: setMinProfitBps(30)...")
         nonce = w3_testnet.eth.get_transaction_count(account.address)
 
+        current_gas_price = w3_testnet.eth.gas_price
         admin_tx = contract.functions.setMinProfitBps(30).build_transaction({
             "from": account.address,
             "nonce": nonce,
-            "gas": 100_000,
-            "gasPrice": w3_testnet.to_wei("10", "gwei"),
+            "gas": 150_000,
+            "gasPrice": current_gas_price,
             "chainId": 97,
         })
         signed = account.sign_transaction(admin_tx)
@@ -229,18 +235,26 @@ def execute_on_chain(confidence, best_pair, gap):
         nonce = w3_testnet.eth.get_transaction_count(account.address, "pending")
         borrow_amt = w3_testnet.to_wei("0.001", "ether")
 
+        if "Buy PCS" in direction:
+            router_a = TESTNET_PANCAKE_ROUTER
+            router_b = TESTNET_BISWAP_ROUTER
+        else:
+            router_a = TESTNET_BISWAP_ROUTER
+            router_b = TESTNET_PANCAKE_ROUTER
+
+        current_gas_price = w3_testnet.eth.gas_price
         arb_tx = contract.functions.requestArbitrage(
             Web3.to_checksum_address(TESTNET_BUSD),
             Web3.to_checksum_address(TESTNET_WBNB),
             borrow_amt,
-            Web3.to_checksum_address(TESTNET_PANCAKE_ROUTER),
-            Web3.to_checksum_address(TESTNET_PANCAKE_ROUTER),
+            Web3.to_checksum_address(router_a),
+            Web3.to_checksum_address(router_b),
             0,
         ).build_transaction({
             "from": account.address,
             "nonce": nonce,
-            "gas": 500_000,
-            "gasPrice": w3_testnet.to_wei("10", "gwei"),
+            "gas": 1_000_000,
+            "gasPrice": current_gas_price,
             "chainId": 97,
         })
         signed = account.sign_transaction(arb_tx)
@@ -298,7 +312,7 @@ def main():
         try:
             trades = contract.functions.totalTrades().call()
             profit = contract.functions.totalProfit().call()
-            print(f"\n── Contract State ──")
+            print("\n── Contract State ──")
             print(f"  totalTrades: {trades}  |  totalProfit: {profit}")
         except Exception as e:
             print(f"  ⚠️  Cannot read contract: {e}")
@@ -358,7 +372,12 @@ def main():
                     print(f"         🔥 EXECUTING on {ai_pick or best['label']}")
                     executions += 1
 
-                    tx_results = execute_on_chain(confidence, ai_pick or best["label"], best["gap_pct"])
+                    pick_label = ai_pick or best["label"]
+                    pick_data = next((r for r in scan if r["label"] == pick_label), best)
+
+                    tx_results = execute_on_chain(
+                        confidence, pick_label, pick_data["gap_pct"], pick_data["direction"]
+                    )
 
                     log_entry = {
                         "timestamp": now_iso,

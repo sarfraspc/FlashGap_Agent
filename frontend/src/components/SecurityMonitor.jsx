@@ -1,20 +1,24 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useContractStats } from '../hooks/useContractStats';
+import { useTradeHistory } from '../hooks/useTradeHistory';
 import { truncateAddress } from '../utils/formatters';
-
-const MOCK_PROOF = {
-    "timestamp": "2026-02-28T02:14:45.197Z",
-    "execution_id": "FG-92872913-AF01",
-    "ai_confidence": 0.95,
-    "pair": "XVS -> WBNB",
-    "audit_status": "COMMITTED_ON_GREENFIELD",
-    "contract_address": "0xa6acB349...0B6bf0"
-};
 
 export default function SecurityMonitor() {
     const { paused, owner, minProfitBps, maxSlippageBps } = useContractStats();
+    const { trades } = useTradeHistory();
     const [showProof, setShowProof] = useState(false);
+
+    const latestTrade = trades?.[0];
+    const proofDetails = latestTrade ? {
+        timestamp: new Date(Number(latestTrade.timestamp || Date.now() / 1000) * 1000).toISOString(),
+        execution_tx: latestTrade.txHash,
+        profit_wei: latestTrade.profit?.toString(),
+        pair: `${latestTrade.tokenBorrow} -> ${latestTrade.tokenTarget}`,
+        audit_status: "VERIFIED_ON_CHAIN"
+    } : {
+        "status": "No trades found on-chain."
+    };
 
     const stats = [
         { label: 'Protocol Status', value: paused ? 'PAUSED' : 'ACTIVE', color: paused ? 'var(--red)' : 'var(--green)' },
@@ -48,7 +52,7 @@ export default function SecurityMonitor() {
                         style={{ background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 8, border: '1px solid rgba(255,255,255,0.05)', marginBottom: 16 }}>
                         <p style={{ fontSize: 9, color: 'var(--cyan)', marginBottom: 8, fontWeight: 700, textTransform: 'uppercase' }}>Recent Audit Proof — ID: FG-928...AF01</p>
                         <pre className="font-mono" style={{ fontSize: 10, color: 'var(--text-tertiary)', whiteSpace: 'pre-wrap', lineHeight: '1.4' }}>
-                            {JSON.stringify(MOCK_PROOF, null, 2)}
+                            {JSON.stringify(proofDetails, null, 2)}
                         </pre>
                     </motion.div>
                 ) : (

@@ -52,7 +52,7 @@ export function useTradeHistory() {
             } catch (err) {
                 console.warn('Trade history fetch error:', err.message);
                 setError(err);
-                if (trades.length === 0) setTrades(DEMO_TRADES);
+                setTrades(prev => prev.length === 0 ? DEMO_TRADES : prev);
             } finally {
                 setIsLoading(false);
             }
