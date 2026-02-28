@@ -1,80 +1,113 @@
-# ⚡ FlashGap AI
+# FlashGap AI
 
-**Algorithmic Arbitrage with AI-Gated Execution on BNB Chain.**
+**Algorithmic Arbitrage with AI-Gated Execution on BNB Chain**
 
-FlashGap AI is a high-speed arbitrage bot that scans multiple liquidity pools across PancakeSwap and BiSwap. It leverages a LLaMA-3.3-70B Large Language Model (via Groq) to evaluate price gaps in real-time, only triggering on-chain transactions when confidence and profit margins exceed strict thresholds.
+FlashGap AI is a high-speed quantitative arbitrage bot designed to scan multiple liquidity pools across decentralized exchanges (PancakeSwap and BiSwap) on the BNB Chain. By integrating an on-chain flash swap contract with an off-chain AI decision engine (LLaMA-3.3-70B via Groq), the system evaluates real-time price divergences and executes trades only when profit margins and AI confidence exceed strict thresholds.
 
----
+## Architecture & Technology Stack
 
-## 🚀 The Stack
-- **Smart Contracts:** Solidity, OpenZeppelin (Flash Swap logic).
-- **Core Engine:** Python, Web3.py.
-- **AI Brain:** LLaMA-3.3-70B (Groq API) for sub-second trade gating.
-- **Frontend:** React, Vite, Framer Motion, Wagmi/Viem.
-- **Data Layers:** Hybrid (Mainnet Price feeds + Testnet Execution logs).
+- **Smart Contracts (Solidity):** Flash swap logic leveraging OpenZeppelin, designed to borrow, swap, and repay within a single atomic transaction.
+- **Core Engine (Python):** Utilizing Web3.py to concurrently scan multiple pairs (WBNB against BUSD, USDT, CAKE, ETH, XVS, DOGE).
+- **AI Engine:** LLaMA-3.3-70B (via Groq API) acts as a sub-second macro-filter, preventing execution on volatile, low-probability, or "toxic" flow based on historical transaction (RAG) context.
+- **Frontend Dashboard:** React, Vite, Framer Motion, and Wagmi/Viem provide a real-time, glassmorphic command center to track executions, AI confidence, and cumulative opportunity value.
+- **Data Layers:** Hybrid architecture reading live pricing data from BNB Mainnet while executing safe test transactions on the BNB Testnet.
 
----
+## Key Features
 
-## 🔥 Key Features
-- **Multi-Pair Scanner:** Scans BUSD, USDT, CAKE, ETH, XVS, and DOGE vs WBNB simultaneously.
-- **AI-Gated Execution:** 90%+ confidence threshold prevents "toxic flow" and failed trades.
-- **Flash-Swap Integration:** Zero-capital required (uses liquidity from one DEX to pay the other).
-- **Real-Time Dashboard:** Glassmorphic UI showing live mainnet blocks and testnet contract state.
-- **Execution Logging:** Structured JSON logs for every AI decision and on-chain TX.
+- **Multi-Pair Concurrent Scanner:** Tracks 6 different token pairs simultaneously across two prominent DEXs.
+- **AI-Gated Execution:** Transactions are only pushed to the mempool if the AI model calculates a high probability of success (e.g., >80% confidence) based on current gap sizes and historical trade context.
+- **Atomic Flash-Swaps:** Zero-capital requirement. The system uses flash loans to borrow liquidity, execute the arbitrage, and repay the loan in one transaction. If the trade is unprofitable, it reverts with minimal gas loss.
+- **Real-Time Visualization:** A dynamic React dashboard that consumes state directly from the Python agent, displaying execution logs, profit metrics, and the AI's real-time reasoning.
+- **Persistent State & Logging:** Structured JSON logs capture every AI decision matrix and on-chain transaction receipt for continuous learning and auditing.
 
----
+## Prerequisites
 
-## 🛠️ Quick Start
+- **Node.js:** v18 or newer
+- **Python:** 3.10 or newer
+- **RPC Endpoints:** BSC Mainnet and BSC Testnet (default Binance public endpoints are configured, but private RPCs are recommended for high-frequency scanning).
+- **Groq API Key:** For LLaMA model access.
 
-### 1. Clone & Install
+## Quick Start Guide
+
+### 1. Clone the Repository
+
 ```bash
-git clone https://github.com/sarfraspc/novum-risk-oracle
+git clone https://github.com/sarfraspc/novum-risk-oracle.git
 cd "FlashGap Web3"
+```
 
-# Install Backend
-pip install web3 python-dotenv openai
+### 2. Environment Configuration
 
-# Install Frontend
+Create a `.env` file in the root directory. You can use `.env.example` as a reference.
+
+```env
+# Blockchain
+DEPLOYER_PRIVATE_KEY=your_bsc_testnet_private_key
+BSC_TESTNET_RPC=https://data-seed-prebsc-1-s1.binance.org:8545
+BSC_MAINNET_RPC=https://bsc-dataseed1.binance.org
+
+# Smart Contract
+FLASHGAP_CONTRACT_ADDRESS=0xa6acB349c32B59c20c898a025971f9e3080B6bf0
+
+# AI Configuration
+OPENAI_API_KEY=your_groq_api_key
+```
+
+### 3. Install Dependencies
+
+**Backend (Python):**
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install -r requirements.txt
+# Alternatively, install manually: pip install web3 python-dotenv openai requests
+```
+
+**Frontend (React/Node):**
+```bash
 cd frontend
 npm install
+cd ..
 ```
 
-### 2. Environment Setup
-Create a `.env` in the root (use `.env.example` as a template):
-```env
-# API Keys
-OPENAI_API_KEY=your_groq_api_key
-AI_BASE_URL=https://api.groq.com/openai/v1
+### 4. Running the System
 
-# Wallets
-DEPLOYER_PRIVATE_KEY=your_testnet_private_key
-FLASHGAP_CONTRACT_ADDRESS=0xa6acB349c32B59c20c898a025971f9e3080B6bf0
-```
+To run the complete system, you need to start both the Python backend agent and the React frontend dashboard simultaneously.
 
-### 3. Run it
-**Step A: The AI Agent (Backend)**
+**Start the Backend Agent:**
 ```bash
+# In the root directory (ensure virtual environment is activated)
 cd backend
 python agent.py
 ```
-**Step B: The Dashboard (Frontend)**
+
+**Start the Frontend Dashboard:**
 ```bash
+# In a new terminal window
 cd frontend
 npm run dev
 ```
 
----
+Navigate to `http://localhost:3000` in your web browser to view the real-time execution dashboard.
 
-## 📜 Deployment Details
-- **Network:** BNB Smart Chain Testnet
-- **Contract:** `0xa6acB349c32B59c20c898a025971f9e3080B6bf0`
-- **Audit:** Automated Chai-matchers test suite (22/22 Passing).
+## Smart Contract Security Mechanisms
 
----
+The `FlashGap.sol` contract implements several strict safety mechanisms:
+- **Flash Loan Guard:** The transaction will explicitly revert if the final balance after the arbitrage loop is insufficient to repay the initial flash loan plus fees.
+- **Access Control:** The `requestArbitrage` function is strictly governed by an `onlyOwner` modifier, ensuring that only the authorized off-chain Python agent can trigger executions.
+- **Slippage Enforcement:** Administrators can set a dynamic `minProfitBps` and `maxSlippageBps` directly on the contract to enforce minimum profitability at the EVM level.
 
-## 🛡️ Security & Compliance
-- **Flash Loan Guard:** Only repayable loops are accepted by the smart contract.
-- **Admin Gating:** Only the AI-authorized executor address can trigger `requestArbitrage`.
-- **Slippage Protection:** Minimum profit BPS is strictly enforced on-chain.
+## Future Roadmap
 
-*Built for BNB Chain x YZi Labs Hack Series · Bengaluru · 2026*
+- **Mainnet Deployment:** Transitioning the execution layer from BNB Testnet to BNB Mainnet.
+- **Expanded DEX Integration:** Adding support for additional liquidity protocols like Uniswap V3 (tick-based liquidity) on BNB Chain.
+- **Advanced RAG Capabilities:** Integrating a vector database (e.g., Qdrant) to store months of historical tick data, allowing the AI to query complex market patterns before executing.
+- **Execution Optimization:** Migrating the Python scanning loop to Rust or Go for microsecond latency improvements.
+
+## Hackathon Context
+
+This project was initially conceived and built for the **BNB Chain x YZi Labs Hack Series (Bengaluru, 2026)**. Focus areas include De-Fi infrastructure, AI-agent integration, and high-frequency smart contract interaction on the BNB Chain.
+
+## License
+
+MIT License

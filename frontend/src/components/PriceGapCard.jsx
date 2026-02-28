@@ -17,7 +17,7 @@ export default function PriceGapCard() {
                 </div>
             </div>
 
-            {/* ── Minimalist Gap Hero ─────────────────────────── */}
+            {/* Minimalist Gap Hero */}
             <div style={{ textAlign: 'center', padding: '12px 0 20px', marginBottom: 16 }}>
                 <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)', marginBottom: 8 }}>Primary Opportunity (Price Gap)</p>
                 <div className={`font-mono ${isOpp ? 'glow-text' : ''}`} style={{ fontSize: 40, fontWeight: 500, letterSpacing: '-0.04em', color: gapColor, lineHeight: 1, textShadow: isOpp ? '' : '0 4px 12px rgba(0,0,0,0.5)' }}>
@@ -25,13 +25,13 @@ export default function PriceGapCard() {
                 </div>
             </div>
 
-            {/* ── Elegant Price Readings ──────────────────────── */}
+            {/* Elegant Price Readings */}
             <div className="price-2col" style={{ marginBottom: 28, background: 'var(--bg-card)', padding: '16px 20px', borderRadius: '16px', border: '1px solid var(--border-glass)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 4px 12px rgba(0,0,0,0.15)' }}>
                 <PriceItem label="PancakeSwap" price={pcsPrice} error={pcsError} />
                 <PriceItem label="BiSwap" price={biswapPrice} error={biswapError} />
             </div>
 
-            {/* ── Subdued History Chart ───────────────────────── */}
+            {/* Subdued History Chart */}
             {history.length > 0 && (
                 <div style={{ height: 60, display: 'flex', alignItems: 'flex-end', gap: '4px', width: '100%', paddingBottom: 4, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                     {history.map((h, i) => {

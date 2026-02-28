@@ -15,9 +15,7 @@ describe("FlashGap", function () {
         await flashGap.waitForDeployment();
     });
 
-    // ═══════════════════════════════════════════════════════════
-    //  DEPLOYMENT
-    // ═══════════════════════════════════════════════════════════
+    // DEPLOYMENT
     describe("Deployment", function () {
         it("should set the correct owner", async function () {
             expect(await flashGap.owner()).to.equal(owner.address);
@@ -52,9 +50,7 @@ describe("FlashGap", function () {
         });
     });
 
-    // ═══════════════════════════════════════════════════════════
-    //  ADMIN FUNCTIONS
-    // ═══════════════════════════════════════════════════════════
+    // ADMIN FUNCTIONS
     describe("Admin functions", function () {
         it("should allow owner to update minProfitBps", async function () {
             const tx = await flashGap.setMinProfitBps(50);
@@ -115,9 +111,7 @@ describe("FlashGap", function () {
         });
     });
 
-    // ═══════════════════════════════════════════════════════════
-    //  PAUSE / UNPAUSE
-    // ═══════════════════════════════════════════════════════════
+    // PAUSE / UNPAUSE
     describe("Pausable", function () {
         it("should allow owner to pause and unpause", async function () {
             await flashGap.pause();
@@ -142,9 +136,7 @@ describe("FlashGap", function () {
         });
     });
 
-    // ═══════════════════════════════════════════════════════════
-    //  EMERGENCY WITHDRAW
-    // ═══════════════════════════════════════════════════════════
+    // EMERGENCY WITHDRAW
     describe("Emergency withdraw", function () {
         it("should accept BNB deposits", async function () {
             const tx = await owner.sendTransaction({
@@ -180,9 +172,7 @@ describe("FlashGap", function () {
         });
     });
 
-    // ═══════════════════════════════════════════════════════════
-    //  CONSTANTS
-    // ═══════════════════════════════════════════════════════════
+    // CONSTANTS
     describe("Constants", function () {
         it("FEE_DENOMINATOR should be 10000", async function () {
             expect(await flashGap.FEE_DENOMINATOR()).to.equal(10000n);

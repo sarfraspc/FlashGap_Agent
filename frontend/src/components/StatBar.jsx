@@ -43,7 +43,7 @@ export default function StatBar() {
     const { balance } = useContractBalance();
     const { gasPrice } = useNetworkStats();
     const { gap } = useLivePrices();
-    const { autoTrade } = useAutoTrade();
+    const { autoTrade, aiState } = useAutoTrade();
     const pBnb = formatBNB(totalProfit || 0n, 4);
     const cBal = balance ? Number(balance.formatted).toFixed(4) : '0.0000';
     const gwei = gasPrice ? (Number(gasPrice) / 1e9).toFixed(1) : null;
@@ -51,12 +51,11 @@ export default function StatBar() {
     return (
         <div className="stat-grid">
             <Stat label="Total Trades" sub="AI Triggered" delay={0}>
-                <Num value={Number(totalTrades) || 0} />
+                <Num value={aiState?.executions || 0} />
             </Stat>
 
-            <Stat label="Identified Profit" sub="Estimated (USD)" delay={1}>
-                {/* Simplified fallback for production */}
-                <Num value={pBnb > 0 ? Number(pBnb) : (gap ? Number(gap) * 6.42 : 0)} decimals={2} prefix="$" />
+            <Stat label="Opportunity Catched" sub="Total Potential (USD)" delay={1}>
+                <Num value={aiState?.cumulative_potential_usd || 0} decimals={2} prefix="$" />
             </Stat>
 
             <Stat label="Active Pairs" sub="Multi-pair Scanner" delay={2}>
